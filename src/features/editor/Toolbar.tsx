@@ -99,7 +99,13 @@ export function EditorToolbar({ editor, disabled }: { editor: Editor | null; dis
   return (
     <div
       className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b px-3 py-2 backdrop-blur print:hidden"
-      style={{ background: "color-mix(in srgb, var(--bg) 85%, transparent)", borderColor: "var(--border)" }}
+      style={{
+        background: "color-mix(in srgb, var(--bg) 85%, transparent)",
+        borderColor: "var(--border)",
+        opacity: disabled ? 0.5 : 1,
+        pointerEvents: disabled ? "none" : undefined,
+      }}
+      aria-disabled={disabled}
       role="toolbar"
       aria-label="Formatting"
     >

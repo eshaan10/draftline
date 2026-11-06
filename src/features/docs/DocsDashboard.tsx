@@ -134,15 +134,13 @@ export function DocsDashboard({
       <Section
         title="My documents"
         rows={filteredOwned}
-        badge="Owned"
+        kind="owned"
         empty={ownedEmpty(owned.length, query)}
         onRename={renameDoc}
         onDelete={deleteDoc}
       />
-      <Section
-        title="Shared with me"
+      <SharedSection
         rows={filteredShared}
-        badge="Shared"
         empty={
           shared.length === 0
             ? "When someone shares a document with you it will show up here."
@@ -168,14 +166,14 @@ function ownedEmpty(count: number, query: string) {
 function Section({
   title,
   rows,
-  badge,
+  kind,
   empty,
   onRename,
   onDelete,
 }: {
   title: string;
   rows: DocRow[];
-  badge: "Owned" | "Shared";
+  kind: "owned";
   empty: string;
   onRename?: (id: string, title: string) => void;
   onDelete?: (id: string, title: string) => void;
@@ -196,7 +194,7 @@ function Section({
         <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((row) => (
             <li key={row.id}>
-              <DocCard row={row} badge={badge} onRename={onRename} onDelete={onDelete} />
+              <DocCard row={row} kind={kind} onRename={onRename} onDelete={onDelete} />
             </li>
           ))}
         </ul>
@@ -205,14 +203,46 @@ function Section({
   );
 }
 
+function SharedSection({ rows, empty }: { rows: SharedRow[]; empty: string }) {
+  return (
+    <section className="mt-10">
+      <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+        Shared with me
+      </h2>
+      {rows.length === 0 ? (
+        <p
+          className="mt-3 rounded-md border px-4 py-6 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+        >
+          {empty}
+        </p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {rows.map((row) => (
+            <li key={row.id}>
+              <SharedCard row={row} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const ROLE_LABEL: Record<"viewer" | "commenter" | "editor", string> = {
+  viewer: "Viewer",
+  commenter: "Commenter",
+  editor: "Editor",
+};
+
 function DocCard({
   row,
-  badge,
+  kind,
   onRename,
   onDelete,
 }: {
   row: DocRow;
-  badge: "Owned" | "Shared";
+  kind: "owned";
   onRename?: (id: string, title: string) => void;
   onDelete?: (id: string, title: string) => void;
 }) {
@@ -244,16 +274,16 @@ function DocCard({
           <span
             className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
             style={{
-              borderColor: badge === "Owned" ? "var(--brand-border)" : "var(--border)",
-              background: badge === "Owned" ? "var(--brand-soft)" : "transparent",
-              color: badge === "Owned" ? "var(--brand)" : "var(--muted)",
+              borderColor: "var(--brand-border)",
+              background: "var(--brand-soft)",
+              color: "var(--brand)",
             }}
           >
-            {badge}
+            Owned
           </span>
         </div>
       </Link>
-      {badge === "Owned" && onRename && onDelete && (
+      {kind === "owned" && onRename && onDelete && (
         <div ref={menuRef} className="absolute right-2 top-2">
           <button
             type="button"
@@ -300,6 +330,33 @@ function DocCard({
           )}
         </div>
       )}
+    </article>
+  );
+}
+
+function SharedCard({ row }: { row: SharedRow }) {
+  return (
+    <article
+      className="group relative overflow-hidden rounded-md border transition hover:border-[color:var(--brand-border)]"
+      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+    >
+      <Link href={`/docs/${row.id}`} className="block">
+        <Thumbnail preview={row.preview} />
+        <div className="flex items-start justify-between gap-2 border-t p-3" style={{ borderColor: "var(--border)" }}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{row.title || "Untitled document"}</p>
+            <p className="mt-0.5 truncate text-xs" style={{ color: "var(--muted)" }}>
+              Shared by {row.ownerName} · Edited {relativeTime(row.updatedAt)}
+            </p>
+          </div>
+          <span
+            className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
+            style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+          >
+            {ROLE_LABEL[row.role]}
+          </span>
+        </div>
+      </Link>
     </article>
   );
 }

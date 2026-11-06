@@ -8,6 +8,7 @@ import { EditorToolbar } from "./Toolbar";
 import { buildExtensions } from "./editorExtensions";
 import { OutlineSidebar } from "./OutlineSidebar";
 import { LinkPopover } from "./LinkPopover";
+import { ShareDialog } from "./ShareDialog";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -30,6 +31,8 @@ export function DocumentWorkspace({
 }) {
   const router = useRouter();
   const canEdit = access === "owner" || access === "editor";
+  const isOwner = access === "owner";
+  const [shareOpen, setShareOpen] = useState(false);
 
   const [title, setTitle] = useState(document.title);
   const [titleStatus, setTitleStatus] = useState<SaveStatus>("saved");
@@ -256,7 +259,17 @@ export function DocumentWorkspace({
             />
           </div>
           <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
+            <AccessChip access={access} />
             <StatusChip status={status} titleStatus={titleStatus} canEdit={canEdit} />
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="btn-primary rounded-md px-3 py-1 text-xs font-medium"
+              >
+                Share
+              </button>
+            )}
             <span>Signed in as {user.name}</span>
           </div>
         </div>
@@ -297,7 +310,35 @@ export function DocumentWorkspace({
           </p>
         </div>
       </section>
+
+      {isOwner && (
+        <ShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          docId={document.id}
+          docTitle={title}
+        />
+      )}
     </main>
+  );
+}
+
+function AccessChip({ access }: { access: "owner" | "editor" | "commenter" | "viewer" }) {
+  const map = {
+    owner: { label: "Owner", color: "var(--brand)", bg: "var(--brand-soft)", border: "var(--brand-border)" },
+    editor: { label: "Editor", color: "var(--brand)", bg: "var(--brand-soft)", border: "var(--brand-border)" },
+    commenter: { label: "Commenter", color: "var(--muted)", bg: "transparent", border: "var(--border)" },
+    viewer: { label: "View only", color: "var(--muted)", bg: "transparent", border: "var(--border)" },
+  } as const;
+  const s = map[access];
+  return (
+    <span
+      className="rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
+      style={{ borderColor: s.border, background: s.bg, color: s.color }}
+      title={`Access: ${s.label}`}
+    >
+      {s.label}
+    </span>
   );
 }
 

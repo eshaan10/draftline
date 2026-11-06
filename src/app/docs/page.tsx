@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
-import { documents } from "@/server/schema";
-import { DocsDashboard, type DocRow } from "@/features/docs/DocsDashboard";
+import { documents, documentShares, users } from "@/server/schema";
+import { DocsDashboard, type DocRow, type SharedRow } from "@/features/docs/DocsDashboard";
 import { buildPreview } from "@/server/preview";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +34,41 @@ export default async function DocsPage() {
     preview: buildPreview(r.content),
   }));
 
+  const sharedRows = await db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      version: documents.version,
+      updatedAt: documents.updatedAt,
+      createdAt: documents.createdAt,
+      content: documents.content,
+      role: documentShares.role,
+      ownerName: users.name,
+    })
+    .from(documentShares)
+    .innerJoin(documents, eq(documents.id, documentShares.documentId))
+    .innerJoin(users, eq(users.id, documents.ownerId))
+    .where(
+      and(eq(documentShares.userId, user.id), eq(documentShares.status, "active")),
+    )
+    .orderBy(desc(documents.updatedAt));
+
+  const shared: SharedRow[] = sharedRows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    version: r.version,
+    updatedAt: r.updatedAt.toISOString(),
+    createdAt: r.createdAt.toISOString(),
+    preview: buildPreview(r.content),
+    role: r.role,
+    ownerName: r.ownerName,
+  }));
+
   return (
     <DocsDashboard
       user={{ id: user.id, name: user.name }}
       owned={owned}
-      shared={[]}
+      shared={shared}
     />
   );
 }

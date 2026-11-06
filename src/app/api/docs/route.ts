@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
-import { documents } from "@/server/schema";
+import { documents, documentShares, users } from "@/server/schema";
 import { buildPreview } from "@/server/preview";
 
 export const runtime = "nodejs";
@@ -41,9 +41,37 @@ export async function GET() {
     .orderBy(desc(documents.updatedAt));
   const owned = rows.map(({ content, ...rest }) => ({
     ...rest,
+    access: "owner" as const,
     preview: buildPreview(content),
   }));
-  return NextResponse.json({ owned, shared: [] });
+
+  const sharedRows = await db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      version: documents.version,
+      updatedAt: documents.updatedAt,
+      createdAt: documents.createdAt,
+      content: documents.content,
+      role: documentShares.role,
+      ownerName: users.name,
+    })
+    .from(documentShares)
+    .innerJoin(documents, eq(documents.id, documentShares.documentId))
+    .innerJoin(users, eq(users.id, documents.ownerId))
+    .where(
+      and(eq(documentShares.userId, user.id), eq(documentShares.status, "active")),
+    )
+    .orderBy(desc(documents.updatedAt));
+
+  const shared = sharedRows.map(({ content, role, ownerName, ...rest }) => ({
+    ...rest,
+    access: role,
+    ownerName,
+    preview: buildPreview(content),
+  }));
+
+  return NextResponse.json({ owned, shared });
 }
 
 export async function POST(req: NextRequest) {
