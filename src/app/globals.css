@@ -72,3 +72,100 @@ body {
   outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
+
+.paper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3rem clamp(1.5rem, 5vw, 4rem);
+  max-width: 820px;
+  margin: 0 auto;
+  min-height: 70vh;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.prose-page .ProseMirror {
+  outline: none;
+  min-height: 60vh;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--fg);
+}
+.prose-page .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+.prose-page .ProseMirror h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 1.4em 0 0.5em;
+}
+.prose-page .ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.2em 0 0.4em;
+}
+.prose-page .ProseMirror h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1em 0 0.3em;
+}
+.prose-page .ProseMirror p {
+  margin: 0.5em 0;
+}
+.prose-page .ProseMirror ul,
+.prose-page .ProseMirror ol {
+  padding-left: 1.4rem;
+  margin: 0.5em 0;
+}
+.prose-page .ProseMirror li > p {
+  margin: 0.2em 0;
+}
+.prose-page .ProseMirror blockquote {
+  border-left: 3px solid var(--brand);
+  padding-left: 1rem;
+  color: var(--muted);
+  margin: 1em 0;
+}
+.prose-page .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+.prose-page .ProseMirror a {
+  color: var(--brand);
+  text-decoration: underline;
+}
+.prose-page .ProseMirror table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+  table-layout: fixed;
+  overflow: hidden;
+}
+.prose-page .ProseMirror th,
+.prose-page .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  min-width: 3rem;
+}
+.prose-page .ProseMirror th {
+  background: var(--brand-soft);
+  font-weight: 600;
+  text-align: left;
+}
+.prose-page .ProseMirror .selectedCell {
+  background: color-mix(in srgb, var(--brand-soft) 90%, var(--border));
+}
+.prose-page .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+  height: 0;
+  float: left;
+}
+.prose-page .ProseMirror img {
+  max-width: 100%;
+  border-radius: 4px;
+}
