@@ -5,6 +5,9 @@ import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { documents } from "@/server/schema";
 import { canWrite, getDocAccess } from "@/server/access";
+import { isSubmissionLocked } from "@/server/submit";
+import { assignments, submissions } from "@/server/schema";
+import { and } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +76,34 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     );
   }
   const db = await getDb();
+  // Assignment lock: if this doc belongs to an assignment and the writer is
+  // the student, block writes once they have submitted after the deadline.
+  if (document.assignmentId && level === "owner" && user) {
+    const sub = (
+      await db
+        .select({ submission: submissions, assignment: assignments })
+        .from(submissions)
+        .innerJoin(assignments, eq(assignments.id, submissions.assignmentId))
+        .where(
+          and(
+            eq(submissions.assignmentId, document.assignmentId),
+            eq(submissions.studentId, user.id),
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (sub && isSubmissionLocked(sub.submission, sub.assignment, new Date())) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "submission_locked",
+            message: "This submission is closed. The deadline has passed.",
+          },
+        },
+        { status: 409 },
+      );
+    }
+  }
   const [updated] = await db
     .update(documents)
     .set({
@@ -83,6 +114,19 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     })
     .where(eq(documents.id, id))
     .returning();
+  // Move submission to in_progress on the first content edit.
+  if (document.assignmentId && level === "owner" && user) {
+    await db
+      .update(submissions)
+      .set({ status: "in_progress" })
+      .where(
+        and(
+          eq(submissions.assignmentId, document.assignmentId),
+          eq(submissions.studentId, user.id),
+          eq(submissions.status, "not_started"),
+        ),
+      );
+  }
   return NextResponse.json({ document: updated });
 }
 

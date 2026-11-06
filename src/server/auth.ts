@@ -114,4 +114,9 @@ export async function activatePendingForUser(user: Pick<User, "id" | "email">): 
     .update(classMembers)
     .set({ status: "active", userId: user.id })
     .where(and(eq(classMembers.email, user.email), eq(classMembers.status, "pending")));
+  // After class membership is activated, create student copies for any
+  // assignments that already exist in those classes. Lazy-imported to avoid
+  // a circular import through db/tx.
+  const { materializeCopiesForUser } = await import("./assignmentCopies");
+  await materializeCopiesForUser(user);
 }

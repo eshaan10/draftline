@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "./db";
-import { documents, documentShares } from "./schema";
+import { assignments, documents, documentShares } from "./schema";
 
 export type AccessLevel = "owner" | "editor" | "commenter" | "viewer";
 
@@ -44,11 +44,18 @@ export async function getDocAccess(
     return { level: share[0].role, document: doc };
   }
 
-  // --- B5 EXTENSION POINT ---------------------------------------------------
-  // Rule 3: if this document belongs to an assignment and userId is the
-  // teacher who owns that assignment, return { level: "commenter", document }.
-  // B5 will implement this lookup via documents.assignmentId -> assignments.
-  // -------------------------------------------------------------------------
+  // Rule 3: teacher of the assignment linked to this document gets commenter
+  // access (view and comment only, never edit).
+  if (doc.assignmentId) {
+    const assignment = await db
+      .select({ teacherId: assignments.teacherId })
+      .from(assignments)
+      .where(eq(assignments.id, doc.assignmentId))
+      .limit(1);
+    if (assignment[0]?.teacherId === userId) {
+      return { level: "commenter", document: doc };
+    }
+  }
 
   return { level: null, document: doc };
 }
