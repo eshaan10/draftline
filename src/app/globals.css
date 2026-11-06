@@ -84,31 +84,108 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
+/* US Letter sheet: 816 x 1056 px at 96dpi with 1in (96px) padding.
+   Page-break guides painted every 1056px using a repeating background. */
+.paper-sheet {
+  background: #ffffff;
+  color: #111827;
+  width: 816px;
+  padding: 96px;
+  margin: 0 auto 2rem;
+  min-height: 1056px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.08);
+  border-radius: 2px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 1055px,
+    rgba(15, 23, 42, 0.08) 1055px,
+    rgba(15, 23, 42, 0.08) 1056px
+  );
+  background-size: 100% 1056px;
+  background-position: 0 0;
+}
+
+[data-theme="dark"] .paper-sheet {
+  background-color: #111827;
+  color: #e5e7eb;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 1055px,
+    rgba(255, 255, 255, 0.12) 1055px,
+    rgba(255, 255, 255, 0.12) 1056px
+  );
+}
+
+/* Scale down on narrow screens so the sheet never overflows horizontally. */
+@media (max-width: 920px) {
+  .paper-sheet {
+    transform-origin: top center;
+    transform: scale(calc((100vw - 48px) / 816));
+    margin-bottom: calc(2rem - (1 - (100vw - 48px) / 816) * 1056px);
+  }
+}
+
+.workspace {
+  background: var(--bg);
+}
+
+@page {
+  size: letter;
+  margin: 1in;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+  header,
+  aside,
+  .link-popover {
+    display: none !important;
+  }
+  .paper-sheet {
+    width: auto;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    background-image: none;
+    min-height: 0;
+  }
+}
+
 .prose-page .ProseMirror {
   outline: none;
   min-height: 60vh;
-  font-size: 1rem;
-  line-height: 1.7;
-  color: var(--fg);
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.15;
+  color: inherit;
 }
 .prose-page .ProseMirror > *:first-child {
   margin-top: 0;
 }
 .prose-page .ProseMirror h1 {
-  font-size: 2rem;
+  font-size: 20pt;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 1.4em 0 0.5em;
-}
-.prose-page .ProseMirror h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
   margin: 1.2em 0 0.4em;
 }
-.prose-page .ProseMirror h3 {
-  font-size: 1.2rem;
+.prose-page .ProseMirror h2 {
+  font-size: 16pt;
   font-weight: 600;
   margin: 1em 0 0.3em;
+}
+.prose-page .ProseMirror h3 {
+  font-size: 14pt;
+  font-weight: 600;
+  margin: 0.9em 0 0.3em;
+}
+.prose-page .ProseMirror mark {
+  padding: 0 0.15em;
+  border-radius: 2px;
 }
 .prose-page .ProseMirror p {
   margin: 0.5em 0;

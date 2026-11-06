@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { documents } from "@/server/schema";
+import { buildPreview } from "@/server/preview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,17 +27,22 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorized();
   const db = await getDb();
-  const owned = await db
+  const rows = await db
     .select({
       id: documents.id,
       title: documents.title,
       version: documents.version,
       updatedAt: documents.updatedAt,
       createdAt: documents.createdAt,
+      content: documents.content,
     })
     .from(documents)
     .where(eq(documents.ownerId, user.id))
     .orderBy(desc(documents.updatedAt));
+  const owned = rows.map(({ content, ...rest }) => ({
+    ...rest,
+    preview: buildPreview(content),
+  }));
   return NextResponse.json({ owned, shared: [] });
 }
 

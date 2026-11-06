@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { generateHTML } from "@tiptap/html";
 import { relativeTime } from "./relativeTime";
+import { buildExtensions } from "@/features/editor/editorExtensions";
 
 export type DocRow = {
   id: string;
@@ -11,13 +13,14 @@ export type DocRow = {
   version: number;
   updatedAt: string;
   createdAt: string;
+  preview: unknown;
 };
 
 export type SharedRow = DocRow & { role: "viewer" | "commenter" | "editor"; ownerName: string };
 
 export function DocsDashboard({
   user,
-  owned,
+  owned: ownedInitial,
   shared,
 }: {
   user: { id: string; name: string };
@@ -29,15 +32,10 @@ export function DocsDashboard({
   const [isPending, startTransition] = useTransition();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [owned, setOwned] = useState<DocRow[]>(ownedInitial);
 
-  const filteredOwned = useMemo(
-    () => filterByTitle(owned, query),
-    [owned, query],
-  );
-  const filteredShared = useMemo(
-    () => filterByTitle(shared, query),
-    [shared, query],
-  );
+  const filteredOwned = useMemo(() => filterByTitle(owned, query), [owned, query]);
+  const filteredShared = useMemo(() => filterByTitle(shared, query), [shared, query]);
 
   async function createDoc() {
     setCreating(true);
@@ -57,12 +55,38 @@ export function DocsDashboard({
     }
   }
 
+  async function renameDoc(id: string, currentTitle: string) {
+    const next = window.prompt("Rename document", currentTitle);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === currentTitle) return;
+    const res = await fetch(`/api/docs/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: trimmed }),
+    });
+    if (!res.ok) {
+      setError("Could not rename that document.");
+      return;
+    }
+    setOwned((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, title: trimmed, updatedAt: new Date().toISOString() } : r)),
+    );
+  }
+
+  async function deleteDoc(id: string, title: string) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/docs/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("Could not delete that document.");
+      return;
+    }
+    setOwned((rows) => rows.filter((r) => r.id !== id));
+  }
+
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <header
-        className="flex items-center justify-between border-b pb-4"
-        style={{ borderColor: "var(--border)" }}
-      >
+    <main className="mx-auto max-w-6xl px-6 py-10">
+      <header className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--border)" }}>
         <div>
           <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
             Draftline
@@ -99,12 +123,22 @@ export function DocsDashboard({
       </section>
 
       {error && (
-        <p className="mt-4 rounded-md border px-3 py-2 text-sm" style={{ color: "#b91c1c", borderColor: "#fecaca", background: "#fef2f2" }}>
+        <p
+          className="mt-4 rounded-md border px-3 py-2 text-sm"
+          style={{ color: "#b91c1c", borderColor: "#fecaca", background: "#fef2f2" }}
+        >
           {error}
         </p>
       )}
 
-      <Section title="My documents" rows={filteredOwned} badge="Owned" empty={ownedEmpty(owned.length, query)} />
+      <Section
+        title="My documents"
+        rows={filteredOwned}
+        badge="Owned"
+        empty={ownedEmpty(owned.length, query)}
+        onRename={renameDoc}
+        onDelete={deleteDoc}
+      />
       <Section
         title="Shared with me"
         rows={filteredShared}
@@ -126,9 +160,7 @@ function filterByTitle<T extends { title: string }>(rows: T[], q: string): T[] {
 }
 
 function ownedEmpty(count: number, query: string) {
-  if (count === 0) {
-    return "Start by creating a document. Changes save automatically while you type.";
-  }
+  if (count === 0) return "Start by creating a document. Changes save automatically while you type.";
   if (query.trim().length > 0) return "No documents match that search.";
   return "You have no documents.";
 }
@@ -138,11 +170,15 @@ function Section({
   rows,
   badge,
   empty,
+  onRename,
+  onDelete,
 }: {
   title: string;
   rows: DocRow[];
   badge: "Owned" | "Shared";
   empty: string;
+  onRename?: (id: string, title: string) => void;
+  onDelete?: (id: string, title: string) => void;
 }) {
   return (
     <section className="mt-10">
@@ -150,39 +186,179 @@ function Section({
         {title}
       </h2>
       {rows.length === 0 ? (
-        <p className="mt-3 rounded-md border px-4 py-6 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}>
+        <p
+          className="mt-3 rounded-md border px-4 py-6 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--muted)" }}
+        >
           {empty}
         </p>
       ) : (
-        <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((row) => (
             <li key={row.id}>
-              <Link
-                href={`/docs/${row.id}`}
-                className="block rounded-md border p-4 transition hover:border-[color:var(--brand-border)]"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="truncate text-base font-medium">{row.title || "Untitled document"}</span>
-                  <span
-                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
-                    style={{
-                      borderColor: badge === "Owned" ? "var(--brand-border)" : "var(--border)",
-                      background: badge === "Owned" ? "var(--brand-soft)" : "transparent",
-                      color: badge === "Owned" ? "var(--brand)" : "var(--muted)",
-                    }}
-                  >
-                    {badge}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-                  Edited {relativeTime(row.updatedAt)}
-                </p>
-              </Link>
+              <DocCard row={row} badge={badge} onRename={onRename} onDelete={onDelete} />
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function DocCard({
+  row,
+  badge,
+  onRename,
+  onDelete,
+}: {
+  row: DocRow;
+  badge: "Owned" | "Shared";
+  onRename?: (id: string, title: string) => void;
+  onDelete?: (id: string, title: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <article
+      className="group relative overflow-hidden rounded-md border transition hover:border-[color:var(--brand-border)]"
+      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+    >
+      <Link href={`/docs/${row.id}`} className="block">
+        <Thumbnail preview={row.preview} />
+        <div className="flex items-start justify-between gap-2 border-t p-3" style={{ borderColor: "var(--border)" }}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{row.title || "Untitled document"}</p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+              Edited {relativeTime(row.updatedAt)}
+            </p>
+          </div>
+          <span
+            className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
+            style={{
+              borderColor: badge === "Owned" ? "var(--brand-border)" : "var(--border)",
+              background: badge === "Owned" ? "var(--brand-soft)" : "transparent",
+              color: badge === "Owned" ? "var(--brand)" : "var(--muted)",
+            }}
+          >
+            {badge}
+          </span>
+        </div>
+      </Link>
+      {badge === "Owned" && onRename && onDelete && (
+        <div ref={menuRef} className="absolute right-2 top-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setMenuOpen((o) => !o);
+            }}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="rounded-md border px-1.5 py-0.5 text-xs opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+            aria-label="Document actions"
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 mt-1 w-32 overflow-hidden rounded-md border text-sm shadow"
+              style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+            >
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onRename(row.id, row.title);
+                }}
+                className="block w-full px-3 py-1.5 text-left hover:bg-[color:var(--brand-soft)]"
+              >
+                Rename
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete(row.id, row.title);
+                }}
+                className="block w-full px-3 py-1.5 text-left hover:bg-[color:var(--brand-soft)]"
+                style={{ color: "#b91c1c" }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function Thumbnail({ preview }: { preview: unknown }) {
+  const html = useMemo(() => {
+    try {
+      const safe =
+        preview && typeof preview === "object" && (preview as { type?: string }).type === "doc"
+          ? preview
+          : { type: "doc", content: [] };
+      return generateHTML(safe as object, buildExtensions());
+    } catch {
+      return "";
+    }
+  }, [preview]);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.25);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(w / 816);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      aria-hidden
+      className="relative w-full overflow-hidden"
+      style={{ aspectRatio: "8.5 / 11", background: "#ffffff" }}
+    >
+      <div
+        className="prose-page"
+        style={{
+          width: "816px",
+          height: "1056px",
+          padding: "96px",
+          transformOrigin: "top left",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          transform: `scale(${scale})`,
+          color: "#111827",
+          fontFamily: "Arial, sans-serif",
+          fontSize: "11pt",
+          lineHeight: 1.15,
+          pointerEvents: "none",
+        }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }

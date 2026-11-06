@@ -221,6 +221,55 @@ describe("docs API", () => {
     expect(back.content).toEqual(rich);
   });
 
+  it("round-trips color, highlight, font-family, font-size, and line-height attrs", async () => {
+    session.current = alice;
+    const created = await list.POST(jsonReq("/api/docs", "POST", { title: "Marks" }));
+    const { document } = await created.json();
+
+    const rich = {
+      type: "doc",
+      content: [
+        {
+          type: "heading",
+          attrs: { level: 1, lineHeight: "1.5", textAlign: null },
+          content: [
+            {
+              type: "text",
+              marks: [
+                {
+                  type: "textStyle",
+                  attrs: { color: "#ef4444", fontFamily: "Georgia, serif", fontSize: "20pt" },
+                },
+              ],
+              text: "Styled heading",
+            },
+          ],
+        },
+        {
+          type: "paragraph",
+          attrs: { lineHeight: "2", textAlign: null },
+          content: [
+            {
+              type: "text",
+              marks: [{ type: "highlight", attrs: { color: "#fef08a" } }],
+              text: "highlighted",
+            },
+          ],
+        },
+      ],
+    };
+
+    const putRes = await one.PUT(
+      jsonReq(`/api/docs/${document.id}`, "PUT", { content: rich, baseVersion: 1 }),
+      params(document.id),
+    );
+    expect(putRes.status).toBe(200);
+
+    const getRes = await one.GET(jsonReq(`/api/docs/${document.id}`, "GET"), params(document.id));
+    const { document: back } = await getRes.json();
+    expect(back.content).toEqual(rich);
+  });
+
   it("rejects invalid UUID with 404 (does not leak existence)", async () => {
     session.current = alice;
     const res = await one.GET(jsonReq(`/api/docs/not-a-uuid`, "GET"), params("not-a-uuid"));

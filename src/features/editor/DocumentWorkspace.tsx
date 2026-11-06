@@ -4,16 +4,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import CharacterCount from "@tiptap/extension-character-count";
-import TextAlign from "@tiptap/extension-text-align";
-import Image from "@tiptap/extension-image";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
 import { EditorToolbar } from "./Toolbar";
+import { buildExtensions } from "./editorExtensions";
+import { OutlineSidebar } from "./OutlineSidebar";
+import { LinkPopover } from "./LinkPopover";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -135,17 +129,7 @@ export function DocumentWorkspace({
     immediatelyRender: false,
     editable: canEdit,
     content: document.content as object,
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Placeholder.configure({ placeholder: "Start writing..." }),
-      CharacterCount,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ allowBase64: false }),
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableHeader,
-      TableCell,
-    ],
+    extensions: buildExtensions(),
     editorProps: {
       attributes: { class: "ProseMirror", "aria-label": "Document body" },
     },
@@ -299,15 +283,19 @@ export function DocumentWorkspace({
         </div>
       )}
 
-      <section className="mx-auto mt-6 max-w-4xl px-4">
-        <div className="paper prose-page">
-          <EditorContent editor={editor} />
+      <section className="workspace mx-auto mt-6 flex max-w-[1400px] gap-4 px-4">
+        <OutlineSidebar editor={editor} />
+        <div className="flex-1 min-w-0">
+          <div className="paper-sheet prose-page">
+            <EditorContent editor={editor} />
+          </div>
+          {editor && canEdit && <LinkPopover editor={editor} />}
+          <p className="mt-3 text-right text-xs" style={{ color: "var(--muted)" }}>
+            {editor?.storage.characterCount?.characters?.() ?? 0} characters
+            {" · "}
+            {editor?.storage.characterCount?.words?.() ?? 0} words
+          </p>
         </div>
-        <p className="mt-3 text-right text-xs" style={{ color: "var(--muted)" }}>
-          {editor?.storage.characterCount?.characters?.() ?? 0} characters
-          {" · "}
-          {editor?.storage.characterCount?.words?.() ?? 0} words
-        </p>
       </section>
     </main>
   );

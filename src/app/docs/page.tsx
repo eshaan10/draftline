@@ -4,6 +4,7 @@ import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { documents } from "@/server/schema";
 import { DocsDashboard, type DocRow } from "@/features/docs/DocsDashboard";
+import { buildPreview } from "@/server/preview";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function DocsPage() {
       version: documents.version,
       updatedAt: documents.updatedAt,
       createdAt: documents.createdAt,
+      content: documents.content,
     })
     .from(documents)
     .where(eq(documents.ownerId, user.id))
@@ -29,6 +31,7 @@ export default async function DocsPage() {
     version: r.version,
     updatedAt: r.updatedAt.toISOString(),
     createdAt: r.createdAt.toISOString(),
+    preview: buildPreview(r.content),
   }));
 
   return (
