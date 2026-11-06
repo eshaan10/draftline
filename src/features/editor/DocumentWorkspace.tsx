@@ -41,24 +41,103 @@ export function DocumentWorkspace({
   const [titleStatus, setTitleStatus] = useState<SaveStatus>("saved");
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [version, setVersion] = useState(document.version);
-  const [conflict, setConflict] = useState<null | { latest: DocumentShape }>(null);
+  const [conflict, setConflict] = useState<null | { latest: DocumentShape | null }>(null);
 
+  // All refs the save loop reads from. State is mirrored into refs so the
+  // save function can be stable (useCallback with [] deps) without going stale.
+  const versionRef = useRef(document.version);
   const dirtyRef = useRef(false);
   const latestContentRef = useRef<unknown>(document.content);
+  const conflictRef = useRef(false);
+  const savingRef = useRef<Promise<void> | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retriesRef = useRef(0);
+  const canEditRef = useRef(canEdit);
+
+  useEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
+  const flushSave = useCallback(async (): Promise<void> => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (conflictRef.current || !dirtyRef.current || !canEditRef.current) return;
+    if (savingRef.current) return savingRef.current;
+
+    const run = (async () => {
+      setStatus("saving");
+      try {
+        while (!conflictRef.current && dirtyRef.current) {
+          const snapshot = latestContentRef.current;
+          const base = versionRef.current;
+          const res = await fetch(`/api/docs/${document.id}`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ content: snapshot, baseVersion: base }),
+          });
+
+          if (res.status === 409) {
+            let latest: DocumentShape | null = null;
+            try {
+              const latestRes = await fetch(`/api/docs/${document.id}`);
+              if (latestRes.ok) latest = (await latestRes.json()).document;
+            } catch {
+              // ignore: we still show the banner even without the latest doc
+            }
+            conflictRef.current = true;
+            setConflict({ latest });
+            setStatus("conflict");
+            return;
+          }
+
+          if (!res.ok) {
+            setStatus("offline");
+            retriesRef.current += 1;
+            const delay = Math.min(30000, 1500 * 2 ** retriesRef.current);
+            timerRef.current = setTimeout(() => {
+              void flushSave();
+            }, delay);
+            return;
+          }
+
+          const data = await res.json();
+          versionRef.current = data.document.version;
+          setVersion(data.document.version);
+          retriesRef.current = 0;
+
+          if (latestContentRef.current === snapshot) {
+            dirtyRef.current = false;
+            setStatus("saved");
+            return;
+          }
+          // New edits arrived while saving. Loop and save the latest snapshot
+          // in the same flight; no second request races this one.
+        }
+      } finally {
+        savingRef.current = null;
+      }
+    })();
+
+    savingRef.current = run;
+    return run;
+  }, [document.id]);
+
+  const scheduleSave = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void flushSave();
+    }, 1500);
+  }, [flushSave]);
 
   const editor = useEditor({
     immediatelyRender: false,
     editable: canEdit,
     content: document.content as object,
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Placeholder.configure({
-        placeholder: "Start writing...",
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Placeholder.configure({ placeholder: "Start writing..." }),
       CharacterCount,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Image.configure({ allowBase64: false }),
@@ -68,66 +147,20 @@ export function DocumentWorkspace({
       TableCell,
     ],
     editorProps: {
-      attributes: {
-        class: "ProseMirror",
-        "aria-label": "Document body",
-      },
+      attributes: { class: "ProseMirror", "aria-label": "Document body" },
     },
     onUpdate: ({ editor }) => {
-      if (!canEdit || conflict) return;
+      if (!canEditRef.current || conflictRef.current) return;
       latestContentRef.current = editor.getJSON();
       dirtyRef.current = true;
-      setStatus("dirty");
+      setStatus("saving");
       scheduleSave();
     },
     onBlur: () => {
-      if (dirtyRef.current) save();
+      if (!dirtyRef.current || conflictRef.current) return;
+      void flushSave();
     },
   });
-
-  const scheduleSave = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      save();
-    }, 1500);
-  }, []);
-
-  const save = useCallback(async () => {
-    if (!dirtyRef.current || conflict) return;
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setStatus("saving");
-    try {
-      const res = await fetch(`/api/docs/${document.id}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          content: latestContentRef.current,
-          baseVersion: version,
-        }),
-      });
-      if (res.status === 409) {
-        const latestRes = await fetch(`/api/docs/${document.id}`);
-        const latest = latestRes.ok ? (await latestRes.json()).document : null;
-        setStatus("conflict");
-        setConflict({ latest });
-        return;
-      }
-      if (!res.ok) throw new Error("save_failed");
-      const data = await res.json();
-      setVersion(data.document.version);
-      dirtyRef.current = false;
-      retriesRef.current = 0;
-      setStatus("saved");
-    } catch {
-      setStatus("offline");
-      retriesRef.current += 1;
-      const delay = Math.min(30000, 1500 * 2 ** retriesRef.current);
-      timerRef.current = setTimeout(save, delay);
-    }
-  }, [conflict, document.id, version]);
 
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -138,6 +171,15 @@ export function DocumentWorkspace({
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, []);
 
   async function saveTitle(next: string) {
@@ -154,6 +196,9 @@ export function DocumentWorkspace({
         body: JSON.stringify({ title: trimmed }),
       });
       if (!res.ok) throw new Error("rename_failed");
+      const { document: updated } = await res.json();
+      versionRef.current = updated.version;
+      setVersion(updated.version);
       setTitleStatus("saved");
     } catch {
       setTitleStatus("offline");
@@ -167,11 +212,13 @@ export function DocumentWorkspace({
       return;
     }
     const { document: latest } = await res.json();
+    versionRef.current = latest.version;
     setVersion(latest.version);
     setTitle(latest.title);
     editor?.commands.setContent(latest.content, { emitUpdate: false });
     latestContentRef.current = latest.content;
     dirtyRef.current = false;
+    conflictRef.current = false;
     setStatus("saved");
     setConflict(null);
   }
@@ -285,7 +332,16 @@ function StatusChip({
       </span>
     );
   }
-  const combined = status === "saved" && titleStatus !== "saved" ? titleStatus : status;
+  const combined: SaveStatus =
+    status === "conflict"
+      ? "conflict"
+      : status === "offline"
+        ? "offline"
+        : status === "saving" || status === "dirty"
+          ? "saving"
+          : titleStatus !== "saved"
+            ? titleStatus
+            : "saved";
   const map: Record<SaveStatus, { label: string; tone: string; bg: string; border: string }> = {
     idle: { label: "Saved", tone: "var(--muted)", bg: "transparent", border: "var(--border)" },
     dirty: { label: "Saving...", tone: "var(--muted)", bg: "transparent", border: "var(--border)" },
