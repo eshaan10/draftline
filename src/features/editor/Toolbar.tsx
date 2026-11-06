@@ -1,7 +1,7 @@
 "use client";
 
 import { type Editor } from "@tiptap/react";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 
 const FONTS = [
   { value: "Arial, sans-serif", label: "Arial" },
@@ -36,7 +36,16 @@ const HIGHLIGHT_COLORS = [
   "#fed7aa",
 ];
 
-export function EditorToolbar({ editor, disabled }: { editor: Editor | null; disabled: boolean }) {
+export function EditorToolbar({
+  editor,
+  disabled,
+  onInsertImage,
+}: {
+  editor: Editor | null;
+  disabled: boolean;
+  onInsertImage?: (file: File) => void;
+}) {
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   // Re-render on selection/transaction so active states stay fresh.
   const [, tick] = useState(0);
   useEffect(() => {
@@ -287,6 +296,29 @@ export function EditorToolbar({ editor, disabled }: { editor: Editor | null; dis
         >
           🔗
         </Btn>
+        {onInsertImage && (
+          <>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="sr-only"
+              tabIndex={-1}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onInsertImage(f);
+                e.target.value = "";
+              }}
+            />
+            <Btn
+              onClick={() => imageInputRef.current?.click()}
+              label="Insert image"
+              disabled={disabled}
+            >
+              🖼
+            </Btn>
+          </>
+        )}
         <Btn
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           label="Horizontal rule"

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { generateHTML } from "@tiptap/html";
 import { relativeTime } from "./relativeTime";
 import { buildExtensions } from "@/features/editor/editorExtensions";
+import { ImportButton } from "@/features/upload/ImportButton";
 
 export type DocRow = {
   id: string;
@@ -33,6 +34,7 @@ export function DocsDashboard({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [owned, setOwned] = useState<DocRow[]>(ownedInitial);
+  const [dragOver, setDragOver] = useState(false);
 
   const filteredOwned = useMemo(() => filterByTitle(owned, query), [owned, query]);
   const filteredShared = useMemo(() => filterByTitle(shared, query), [shared, query]);
@@ -84,8 +86,43 @@ export function DocsDashboard({
     setOwned((rows) => rows.filter((r) => r.id !== id));
   }
 
+  async function handleDropFile(file: File) {
+    setDragOver(false);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/import", { method: "POST", body: fd });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg =
+        res.status === 413
+          ? "File exceeds the 4 MB limit."
+          : res.status === 415
+            ? "Only .docx, .md, and .txt files are supported."
+            : (body?.error?.message as string | undefined) ?? "Import failed.";
+      setError(msg);
+      return;
+    }
+    const { document, warnings } = (await res.json()) as {
+      document: { id: string };
+      warnings: string[];
+    };
+    const dest = `/docs/${document.id}${warnings.length > 0 ? "?imported=1" : ""}`;
+    startTransition(() => router.push(dest));
+  }
+
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
+    <main
+      className="mx-auto max-w-6xl px-6 py-10"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file) void handleDropFile(file);
+      }}
+      style={dragOver ? { outline: "2px dashed var(--brand)", outlineOffset: "-4px" } : undefined}
+    >
       <header className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--border)" }}>
         <div>
           <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
@@ -113,6 +150,10 @@ export function DocsDashboard({
         >
           {creating || isPending ? "Creating..." : "New document"}
         </button>
+        <ImportButton />
+        <span className="text-xs" style={{ color: "var(--muted)" }}>
+          Supports .docx, .md and .txt, up to 4 MB. Or drag a file anywhere on the page.
+        </span>
         <input
           type="search"
           value={query}
