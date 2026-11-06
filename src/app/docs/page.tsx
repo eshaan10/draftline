@@ -66,7 +66,7 @@ export default async function DocsPage() {
 
   return (
     <DocsDashboard
-      user={{ id: user.id, name: user.name }}
+      user={{ id: user.id, name: user.name, role: user.role }}
       owned={owned}
       shared={shared}
     />

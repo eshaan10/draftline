@@ -24,7 +24,7 @@ export function DocsDashboard({
   owned: ownedInitial,
   shared,
 }: {
-  user: { id: string; name: string };
+  user: { id: string; name: string; role: string };
   owned: DocRow[];
   shared: SharedRow[];
 }) {
@@ -131,6 +131,14 @@ export function DocsDashboard({
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your documents</h1>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/assignments" className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+            Assignments
+          </Link>
+          {user.role === "teacher" && (
+            <Link href="/classes" className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+              Classes
+            </Link>
+          )}
           <span className="text-sm" style={{ color: "var(--muted)" }}>
             Signed in as {user.name}
           </span>
