@@ -9,6 +9,8 @@ import { buildExtensions } from "./editorExtensions";
 import { OutlineSidebar } from "./OutlineSidebar";
 import { LinkPopover } from "./LinkPopover";
 import { ShareDialog } from "./ShareDialog";
+import { AttachmentsPanel } from "@/features/upload/AttachmentsPanel";
+import { createRecorder, type Recorder } from "@/features/replay/recorder";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -24,15 +26,24 @@ export function DocumentWorkspace({
   user,
   document,
   access,
+  replayNextSeq,
+  showImportNotice,
 }: {
   user: { id: string; name: string };
   document: DocumentShape;
   access: "owner" | "editor" | "commenter" | "viewer";
+  replayNextSeq: number;
+  showImportNotice?: boolean;
 }) {
   const router = useRouter();
   const canEdit = access === "owner" || access === "editor";
   const isOwner = access === "owner";
   const [shareOpen, setShareOpen] = useState(false);
+  const [importNotice, setImportNotice] = useState(showImportNotice ?? false);
+  // Ref so paste/drop handlers can call the latest upload fn without stale closure.
+  const uploadImageRef = useRef<(file: File) => void>(() => {});
+  // Recorder ref: created on mount if canEdit, destroyed on unmount.
+  const recorderRef = useRef<Recorder | null>(null);
 
   const [title, setTitle] = useState(document.title);
   const [titleStatus, setTitleStatus] = useState<SaveStatus>("saved");
@@ -135,6 +146,35 @@ export function DocumentWorkspace({
     extensions: buildExtensions(),
     editorProps: {
       attributes: { class: "ProseMirror", "aria-label": "Document body" },
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []);
+        const imgs = files.filter((f) => f.type.startsWith("image/"));
+        if (imgs.length > 0) {
+          imgs.forEach((f) => uploadImageRef.current(f));
+          return true;
+        }
+        return false;
+      },
+      handleDrop: (_view, event) => {
+        const files = Array.from((event as DragEvent).dataTransfer?.files ?? []);
+        const imgs = files.filter((f) => f.type.startsWith("image/"));
+        if (imgs.length > 0) {
+          imgs.forEach((f) => uploadImageRef.current(f));
+          return true;
+        }
+        return false;
+      },
+    },
+    onTransaction: ({ editor: ed, transaction }) => {
+      if (canEditRef.current && recorderRef.current) {
+        recorderRef.current.record(
+          // The transaction type from @tiptap/react's onTransaction matches
+          // what the recorder expects at runtime.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          transaction as any,
+          () => ed.getJSON(),
+        );
+      }
     },
     onUpdate: ({ editor }) => {
       if (!canEditRef.current || conflictRef.current) return;
@@ -146,6 +186,7 @@ export function DocumentWorkspace({
     onBlur: () => {
       if (!dirtyRef.current || conflictRef.current) return;
       void flushSave();
+      recorderRef.current?.onBlur();
     },
   });
 
@@ -167,6 +208,22 @@ export function DocumentWorkspace({
         timerRef.current = null;
       }
     };
+  }, []);
+
+  // Recorder lifecycle: create once on mount (if editable), destroy on unmount.
+  useEffect(() => {
+    if (!canEdit) return;
+    recorderRef.current = createRecorder({
+      docId: document.id,
+      initialContent: document.content,
+      nextSeq: replayNextSeq,
+    });
+    return () => {
+      recorderRef.current?.destroy();
+      recorderRef.current = null;
+    };
+    // Intentionally only runs once on mount; replayNextSeq is the initial value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function saveTitle(next: string) {
@@ -209,6 +266,18 @@ export function DocumentWorkspace({
     setStatus("saved");
     setConflict(null);
   }
+
+  // Keep uploadImageRef.current pointing at the latest editor so paste/drop never go stale.
+  uploadImageRef.current = async (file: File) => {
+    if (!editor || !canEdit) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("kind", "image");
+    const res = await fetch(`/api/docs/${document.id}/attachments`, { method: "POST", body: fd });
+    if (!res.ok) return;
+    const { attachment } = (await res.json()) as { attachment: { url: string } };
+    editor.chain().focus().setImage({ src: attachment.url }).run();
+  };
 
   async function keepMyVersion() {
     const res = await fetch(`/api/docs`, {
@@ -261,6 +330,14 @@ export function DocumentWorkspace({
           <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
             <AccessChip access={access} />
             <StatusChip status={status} titleStatus={titleStatus} canEdit={canEdit} />
+            {canEdit && (
+              <Link
+                href={`/docs/${document.id}/replay`}
+                className="btn-ghost rounded-md px-3 py-1 text-xs font-medium"
+              >
+                Replay
+              </Link>
+            )}
             {isOwner && (
               <button
                 type="button"
@@ -273,7 +350,11 @@ export function DocumentWorkspace({
             <span>Signed in as {user.name}</span>
           </div>
         </div>
-        <EditorToolbar editor={editor} disabled={!canEdit} />
+        <EditorToolbar
+          editor={editor}
+          disabled={!canEdit}
+          onInsertImage={canEdit ? (f) => uploadImageRef.current(f) : undefined}
+        />
       </header>
 
       {conflict && (
@@ -296,6 +377,25 @@ export function DocumentWorkspace({
         </div>
       )}
 
+      {importNotice && (
+        <div
+          className="mx-auto mt-4 max-w-4xl rounded-md border px-4 py-3"
+          style={{ background: "#f0fdf4", borderColor: "#86efac", color: "#166534" }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm">Some formatting may differ from the original.</p>
+            <button
+              type="button"
+              onClick={() => setImportNotice(false)}
+              aria-label="Dismiss"
+              className="ml-4 rounded px-1 text-sm font-medium hover:opacity-70"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="workspace mx-auto mt-6 flex max-w-[1400px] gap-4 px-4">
         <OutlineSidebar editor={editor} />
         <div className="flex-1 min-w-0">
@@ -309,6 +409,7 @@ export function DocumentWorkspace({
             {editor?.storage.characterCount?.words?.() ?? 0} words
           </p>
         </div>
+        <AttachmentsPanel docId={document.id} userId={user.id} canEdit={canEdit} />
       </section>
 
       {isOwner && (
