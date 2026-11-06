@@ -11,6 +11,7 @@ import { LinkPopover } from "./LinkPopover";
 import { ShareDialog } from "./ShareDialog";
 import { AttachmentsPanel } from "@/features/upload/AttachmentsPanel";
 import { createRecorder, type Recorder } from "@/features/replay/recorder";
+import { relativeTime } from "@/features/docs/relativeTime";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -28,12 +29,14 @@ export function DocumentWorkspace({
   access,
   replayNextSeq,
   showImportNotice,
+  lastEditor,
 }: {
   user: { id: string; name: string };
   document: DocumentShape;
   access: "owner" | "editor" | "commenter" | "viewer";
   replayNextSeq: number;
   showImportNotice?: boolean;
+  lastEditor?: { name: string; at: string } | null;
 }) {
   const router = useRouter();
   const canEdit = access === "owner" || access === "editor";
@@ -346,6 +349,11 @@ export function DocumentWorkspace({
               >
                 Share
               </button>
+            )}
+            {lastEditor && (
+              <span>
+                Last edited by {lastEditor.name}, {relativeTime(lastEditor.at)}
+              </span>
             )}
             <span>Signed in as {user.name}</span>
           </div>

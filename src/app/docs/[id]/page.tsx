@@ -1,10 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import { eq, max } from "drizzle-orm";
+import { desc, eq, max } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDocAccess } from "@/server/access";
 import { getDb } from "@/server/db";
-import { docEvents } from "@/server/schema";
+import { docEvents, users } from "@/server/schema";
 import { DocumentWorkspace } from "@/features/editor/DocumentWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -27,11 +27,25 @@ export default async function EditorPage({
   if (!level || !document) notFound();
 
   const db = await getDb();
-  const maxSeqRows = await db
-    .select({ maxSeq: max(docEvents.seq) })
-    .from(docEvents)
-    .where(eq(docEvents.documentId, id));
+
+  const [maxSeqRows, lastEventRows] = await Promise.all([
+    db
+      .select({ maxSeq: max(docEvents.seq) })
+      .from(docEvents)
+      .where(eq(docEvents.documentId, id)),
+    db
+      .select({ userName: users.name, receivedAt: docEvents.receivedAt })
+      .from(docEvents)
+      .innerJoin(users, eq(users.id, docEvents.userId))
+      .where(eq(docEvents.documentId, id))
+      .orderBy(desc(docEvents.seq))
+      .limit(1),
+  ]);
+
   const replayNextSeq = (maxSeqRows[0]?.maxSeq ?? -1) + 1;
+  const lastEditor = lastEventRows[0]
+    ? { name: lastEventRows[0].userName, at: lastEventRows[0].receivedAt.toISOString() }
+    : null;
 
   return (
     <DocumentWorkspace
@@ -46,6 +60,7 @@ export default async function EditorPage({
       access={level}
       replayNextSeq={replayNextSeq}
       showImportNotice={sp.imported === "1"}
+      lastEditor={lastEditor}
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { getSchema } from "@tiptap/core";
 import { Node } from "@tiptap/pm/model";
@@ -8,12 +8,16 @@ import { Step } from "@tiptap/pm/transform";
 import { buildExtensions } from "@/features/editor/editorExtensions";
 import { computeFacts, type ReplayEventRow } from "./facts";
 import { PasteHighlightExtension, setPasteHighlight } from "./pasteHighlightExtension";
+import { AuthorHighlightExtension, setAuthorHighlight } from "./authorHighlightExtension";
+import { buildAuthorColors } from "./authorColors";
 
 interface ReplayPlayerProps {
   docId: string;
   initialEvents: Array<
     ReplayEventRow & { steps: unknown[]; checkpoint: unknown | null }
   >;
+  /** userId -> display name */
+  authors?: Record<string, string>;
   canAccess: boolean;
 }
 
@@ -81,7 +85,7 @@ export function buildDocAtIndex(
   return doc.toJSON();
 }
 
-function computePasteRange(
+function computeInsertRange(
   event: ReplayEventRow & { steps: unknown[]; checkpoint: unknown | null },
 ): { from: number; to: number } | null {
   if (event.steps.length === 0) return null;
@@ -108,9 +112,15 @@ function computePasteRange(
   return { from: minFrom, to: maxTo };
 }
 
-export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
+export function ReplayPlayer({ initialEvents, authors = {}, canAccess }: ReplayPlayerProps) {
   const events = initialEvents;
   const facts = computeFacts(events);
+
+  // Build stable author colors based on order of first appearance.
+  const authorColors = useMemo(() => {
+    const ids = events.map((e) => e.userId ?? "__unknown__");
+    return buildAuthorColors(ids);
+  }, [events]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -122,13 +132,14 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
   const speedRef = useRef(speed);
   const skipIdleRef = useRef(skipIdle);
   const pasteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const authorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
   useEffect(() => { speedRef.current = speed; }, [speed]);
   useEffect(() => { skipIdleRef.current = skipIdle; }, [skipIdle]);
 
-  const extensions = [...buildExtensions(), PasteHighlightExtension];
+  const extensions = [...buildExtensions(), PasteHighlightExtension, AuthorHighlightExtension];
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -146,24 +157,39 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
     if (docJson) {
       editor.commands.setContent(docJson as object, { emitUpdate: false });
     }
-    // Clear any existing paste highlight
-    if (pasteTimerRef.current) {
-      clearTimeout(pasteTimerRef.current);
-      pasteTimerRef.current = null;
+
+    // Clear existing highlights
+    if (pasteTimerRef.current) { clearTimeout(pasteTimerRef.current); pasteTimerRef.current = null; }
+    if (authorTimerRef.current) { clearTimeout(authorTimerRef.current); authorTimerRef.current = null; }
+    if (editor.view) {
+      setPasteHighlight(editor.view, null);
+      setAuthorHighlight(editor.view, null);
     }
-    if (editor.view) setPasteHighlight(editor.view, null);
 
     const event = events[currentIndex];
-    if (event?.kind === "paste") {
-      const range = computePasteRange(event);
-      if (range && editor.view) {
-        setPasteHighlight(editor.view, range);
-        pasteTimerRef.current = setTimeout(() => {
-          if (editor.view) setPasteHighlight(editor.view, null);
-        }, 1000);
+    if (!event || !editor.view) return;
+
+    const range = computeInsertRange(event);
+
+    // Paste highlight (orange/brand tint)
+    if (event.kind === "paste" && range) {
+      setPasteHighlight(editor.view, range);
+      pasteTimerRef.current = setTimeout(() => {
+        if (editor.view) setPasteHighlight(editor.view, null);
+      }, 1000);
+    }
+
+    // Author highlight (author's color tint)
+    if (range && event.userId) {
+      const color = authorColors[event.userId]?.bg;
+      if (color) {
+        setAuthorHighlight(editor.view, { ...range, color });
+        authorTimerRef.current = setTimeout(() => {
+          if (editor.view) setAuthorHighlight(editor.view, null);
+        }, 1200);
       }
     }
-  }, [currentIndex, editor, events]);
+  }, [currentIndex, editor, events, authorColors]);
 
   // Play loop
   const advance = useCallback(() => {
@@ -228,11 +254,19 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
   const maxClientT = events[events.length - 1].clientT || 1;
   const currentEvent = events[currentIndex];
   const currentClientT = currentEvent?.clientT ?? 0;
+  const currentAuthorId = currentEvent?.userId;
+  const currentAuthorName = currentAuthorId ? (authors[currentAuthorId] ?? "Unknown") : null;
+  const currentAuthorColor = currentAuthorId ? authorColors[currentAuthorId] : undefined;
 
   const pasteMarkers = facts.pasteEvents.map((pe) => ({
     seq: pe.seq,
     pct: maxClientT > 0 ? (pe.clientT / maxClientT) * 100 : 0,
   }));
+
+  // Authors with known names for legend
+  const legendEntries = Object.entries(authorColors)
+    .filter(([uid]) => uid !== "__unknown__")
+    .map(([uid, color]) => ({ uid, name: authors[uid] ?? "Unknown", color }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -242,7 +276,7 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div
-          className="px-4 py-2 text-xs border-b flex items-center gap-3"
+          className="px-4 py-2 text-xs border-b flex items-center gap-3 flex-wrap"
           style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >
           <span>Event {currentIndex} of {events.length - 1}</span>
@@ -253,6 +287,14 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
               style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
             >
               {currentEvent.kind}
+            </span>
+          )}
+          {currentAuthorName && currentAuthorColor && (
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ background: currentAuthorColor.bg, color: currentAuthorColor.text, border: `1px solid ${currentAuthorColor.border}` }}
+            >
+              {currentAuthorName}
             </span>
           )}
         </div>
@@ -368,23 +410,56 @@ export function ReplayPlayer({ initialEvents, canAccess }: ReplayPlayerProps) {
       >
         <h3 className="text-sm font-semibold mb-3">Characters by source</h3>
         <div className="flex flex-col gap-2 text-sm">
-          <SourceBar
-            label="Typed"
-            count={facts.charsBySource.typed}
-            total={facts.charsBySource.total}
-          />
-          <SourceBar
-            label="Pasted"
-            count={facts.charsBySource.pasted}
-            total={facts.charsBySource.total}
-          />
-          <SourceBar
-            label="Imported"
-            count={facts.charsBySource.imported}
-            total={facts.charsBySource.total}
-          />
+          <SourceBar label="Typed" count={facts.charsBySource.typed} total={facts.charsBySource.total} />
+          <SourceBar label="Pasted" count={facts.charsBySource.pasted} total={facts.charsBySource.total} />
+          <SourceBar label="Imported" count={facts.charsBySource.imported} total={facts.charsBySource.total} />
         </div>
       </div>
+
+      {/* Per-author breakdown */}
+      {legendEntries.length > 1 && (
+        <div
+          className="rounded-lg border p-5"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <h3 className="text-sm font-semibold mb-4">Per-author breakdown</h3>
+          <div className="flex flex-col gap-3">
+            {legendEntries.map(({ uid, name, color }) => {
+              const af = facts.perAuthor[uid];
+              if (!af) return null;
+              return (
+                <div key={uid} className="flex items-start gap-3">
+                  <span
+                    className="mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium"
+                    style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
+                  >
+                    {name}
+                  </span>
+                  <div className="flex flex-wrap gap-4 text-xs" style={{ color: "var(--muted)" }}>
+                    <span><strong className="text-[color:var(--fg)]">{af.inserted}</strong> inserted</span>
+                    <span><strong className="text-[color:var(--fg)]">{af.deleted}</strong> deleted</span>
+                    <span><strong className="text-[color:var(--fg)]">{af.pasteEvents}</strong> pastes</span>
+                    <span><strong className="text-[color:var(--fg)]">{formatMs(af.activeWritingMs)}</strong> active</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Author legend (single-author docs: show condensed) */}
+      {legendEntries.length === 1 && (
+        <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
+          <span
+            className="rounded px-2 py-0.5 font-medium"
+            style={{ background: legendEntries[0].color.bg, color: legendEntries[0].color.text, border: `1px solid ${legendEntries[0].color.border}` }}
+          >
+            {legendEntries[0].name}
+          </span>
+          <span>sole author</span>
+        </div>
+      )}
 
       {/* Paste events list */}
       {facts.pasteEvents.length > 0 && (

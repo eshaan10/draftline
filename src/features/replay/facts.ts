@@ -7,6 +7,14 @@ export interface ReplayEventRow {
   deleted: number;
   clientT: number;
   receivedAt: string;
+  userId?: string; // server-stamped; undefined only for legacy/test events
+}
+
+export interface AuthorFacts {
+  inserted: number;
+  deleted: number;
+  pasteEvents: number;
+  activeWritingMs: number;
 }
 
 export interface ReplayFacts {
@@ -20,6 +28,7 @@ export interface ReplayFacts {
     imported: number;
     total: number;
   };
+  perAuthor: Record<string, AuthorFacts>;
 }
 
 const IDLE_GAP_MS = 120_000; // 2 minutes
@@ -33,6 +42,7 @@ export function computeFacts(events: ReplayEventRow[]): ReplayFacts {
       revisionCount: 0,
       pasteEvents: [],
       charsBySource: { typed: 0, pasted: 0, imported: 0, total: 0 },
+      perAuthor: {},
     };
   }
 
@@ -70,6 +80,36 @@ export function computeFacts(events: ReplayEventRow[]): ReplayFacts {
     }
   }
 
+  // Per-author breakdown: group events by userId, then compute stats within each group.
+  const perAuthor: Record<string, AuthorFacts> = {};
+
+  for (const e of events) {
+    const uid = e.userId ?? "__unknown__";
+    if (!perAuthor[uid]) {
+      perAuthor[uid] = { inserted: 0, deleted: 0, pasteEvents: 0, activeWritingMs: 0 };
+    }
+    perAuthor[uid].inserted += e.inserted;
+    perAuthor[uid].deleted += e.deleted;
+    if (e.kind === "paste") perAuthor[uid].pasteEvents += 1;
+  }
+
+  // Per-author active writing time: gaps between consecutive events by the same author.
+  const byAuthor: Record<string, ReplayEventRow[]> = {};
+  for (const e of events) {
+    const uid = e.userId ?? "__unknown__";
+    if (!byAuthor[uid]) byAuthor[uid] = [];
+    byAuthor[uid].push(e);
+  }
+  for (const [uid, authorEvents] of Object.entries(byAuthor)) {
+    // Events are already in seq order (ascending clientT within author sessions).
+    let authorActiveMs = 0;
+    for (let i = 1; i < authorEvents.length; i++) {
+      const gap = authorEvents[i].clientT - authorEvents[i - 1].clientT;
+      if (gap <= IDLE_GAP_MS) authorActiveMs += gap;
+    }
+    perAuthor[uid].activeWritingMs = authorActiveMs;
+  }
+
   return {
     activeWritingMs,
     sessionCount,
@@ -81,5 +121,6 @@ export function computeFacts(events: ReplayEventRow[]): ReplayFacts {
       imported,
       total: typed + pasted + imported,
     },
+    perAuthor,
   };
 }

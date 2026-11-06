@@ -15,6 +15,7 @@ export type DocRow = {
   updatedAt: string;
   createdAt: string;
   preview: unknown;
+  lastEditor: { name: string; at: string } | null;
 };
 
 export type SharedRow = DocRow & { role: "viewer" | "commenter" | "editor"; ownerName: string };
@@ -317,7 +318,9 @@ function DocCard({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{row.title || "Untitled document"}</p>
             <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
-              Edited {relativeTime(row.updatedAt)}
+              {row.lastEditor
+                ? `Last edited by ${row.lastEditor.name}, ${relativeTime(row.lastEditor.at)}`
+                : `Edited ${relativeTime(row.updatedAt)}`}
             </p>
           </div>
           <span
@@ -395,7 +398,9 @@ function SharedCard({ row }: { row: SharedRow }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{row.title || "Untitled document"}</p>
             <p className="mt-0.5 truncate text-xs" style={{ color: "var(--muted)" }}>
-              Shared by {row.ownerName} · Edited {relativeTime(row.updatedAt)}
+              {row.lastEditor
+                ? `${row.ownerName} · Last edited by ${row.lastEditor.name}, ${relativeTime(row.lastEditor.at)}`
+                : `Shared by ${row.ownerName} · Edited ${relativeTime(row.updatedAt)}`}
             </p>
           </div>
           <span

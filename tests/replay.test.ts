@@ -25,8 +25,9 @@ const replayRoute = await import("@/app/api/docs/[id]/replay/route");
 const docListRoute = await import("@/app/api/docs/route");
 const docRoute = await import("@/app/api/docs/[id]/route");
 
-// computeFacts is pure; import directly.
+// computeFacts and buildAuthorColors are pure; import directly.
 const { computeFacts } = await import("@/features/replay/facts");
+const { buildAuthorColors } = await import("@/features/replay/authorColors");
 
 // buildDocAtIndex is used by the player; it imports from @tiptap/pm and @tiptap/core.
 // Those work in Node.js (no DOM needed), so we can import and test them here.
@@ -431,5 +432,106 @@ describe("events route auth checks", () => {
     );
     // 404 is correct here: a non-member should not learn the document exists.
     expect(res.status).toBe(404);
+  });
+});
+
+// -------------------------------------------------------------------------
+// Test f: Per-author attribution
+// -------------------------------------------------------------------------
+describe("Test f: per-author attribution", () => {
+  it("two users editing same doc produce correct per-author numbers", () => {
+    const aliceId = "aaaaaaaa-0000-0000-0000-000000000001";
+    const bobId   = "bbbbbbbb-0000-0000-0000-000000000002";
+
+    const events = [
+      { seq: 0, kind: "import" as const, inserted: 0, deleted: 0, clientT: 0, receivedAt: "2024-01-01T00:00:00Z", userId: aliceId },
+      { seq: 1, kind: "type"   as const, inserted: 10, deleted: 0, clientT: 1000, receivedAt: "2024-01-01T00:00:01Z", userId: aliceId },
+      { seq: 2, kind: "paste"  as const, inserted: 20, deleted: 0, clientT: 2000, receivedAt: "2024-01-01T00:00:02Z", userId: aliceId },
+      { seq: 3, kind: "type"   as const, inserted: 5,  deleted: 2, clientT: 3000, receivedAt: "2024-01-01T00:00:03Z", userId: bobId },
+      { seq: 4, kind: "delete" as const, inserted: 0,  deleted: 3, clientT: 4000, receivedAt: "2024-01-01T00:00:04Z", userId: bobId },
+    ];
+
+    const facts = computeFacts(events);
+
+    // Alice: type(10) + paste(20) = 30 inserted, 0 deleted, 1 paste event
+    expect(facts.perAuthor[aliceId]).toBeDefined();
+    expect(facts.perAuthor[aliceId].inserted).toBe(30);
+    expect(facts.perAuthor[aliceId].deleted).toBe(0);
+    expect(facts.perAuthor[aliceId].pasteEvents).toBe(1);
+
+    // Bob: type(5) + delete(0) = 5 inserted, 2+3=5 deleted, 0 paste events
+    expect(facts.perAuthor[bobId]).toBeDefined();
+    expect(facts.perAuthor[bobId].inserted).toBe(5);
+    expect(facts.perAuthor[bobId].deleted).toBe(5);
+    expect(facts.perAuthor[bobId].pasteEvents).toBe(0);
+
+    // Active writing time per author (gaps <= 120s)
+    // Alice: gap 0->1 = 1000ms, gap 1->2 = 1000ms => 2000ms
+    expect(facts.perAuthor[aliceId].activeWritingMs).toBe(2000);
+    // Bob: gap 3->4 = 1000ms => 1000ms
+    expect(facts.perAuthor[bobId].activeWritingMs).toBe(1000);
+  });
+
+  it("import events are attributed to the event userId (document owner)", () => {
+    const ownerId = "cccccccc-0000-0000-0000-000000000003";
+
+    const events = [
+      { seq: 0, kind: "import" as const, inserted: 500, deleted: 0, clientT: 0, receivedAt: "2024-01-01T00:00:00Z", userId: ownerId },
+      { seq: 1, kind: "type"   as const, inserted: 10,  deleted: 0, clientT: 1000, receivedAt: "2024-01-01T00:00:01Z", userId: ownerId },
+    ];
+
+    const facts = computeFacts(events);
+    // All content attributed to owner
+    expect(Object.keys(facts.perAuthor)).toEqual([ownerId]);
+    expect(facts.perAuthor[ownerId].inserted).toBe(510);
+    // Imported chars count as "imported" in charsBySource
+    expect(facts.charsBySource.imported).toBe(500);
+    expect(facts.charsBySource.typed).toBe(10);
+  });
+
+  it("replay API returns userId and authors map", async () => {
+    const doc = await createDoc(alice, "Attribution replay doc");
+    session.current = alice;
+
+    // Post a couple of events as alice
+    await eventsRoute.POST(
+      jsonReq(`/api/docs/${doc.id}/events`, "POST", {
+        events: [
+          { seq: 0, kind: "import", steps: [], inserted: 0, deleted: 0, clientT: 0, checkpoint: { type: "doc", content: [] } },
+          { seq: 1, kind: "type",   steps: [], inserted: 5, deleted: 0, clientT: 1000 },
+        ],
+      }),
+      params(doc.id),
+    );
+
+    const res = await replayRoute.GET(
+      jsonReq(`/api/docs/${doc.id}/replay`, "GET"),
+      params(doc.id),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      events: Array<{ userId: string }>;
+      authors: Record<string, string>;
+      nextSeq: number;
+    };
+
+    // Every event has a userId
+    expect(body.events.every((e) => typeof e.userId === "string")).toBe(true);
+    // alice's userId maps to her name
+    expect(body.authors[alice.id]).toBe(alice.name);
+  });
+
+  it("buildAuthorColors assigns stable distinct colors", () => {
+    const id1 = "aaaaaaaa-0000-0000-0000-000000000001";
+    const id2 = "bbbbbbbb-0000-0000-0000-000000000002";
+    const id3 = "cccccccc-0000-0000-0000-000000000003";
+
+    const colors = buildAuthorColors([id1, id2, id1, id3, id2]);
+    // 3 distinct authors
+    expect(Object.keys(colors)).toHaveLength(3);
+    // Colors are stable (same input always same output)
+    expect(colors[id1]).toEqual(buildAuthorColors([id1, id2, id3])[id1]);
+    // id1 and id2 get different colors
+    expect(colors[id1].bg).not.toBe(colors[id2].bg);
   });
 });

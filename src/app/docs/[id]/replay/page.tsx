@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDocAccess } from "@/server/access";
 import { getDb } from "@/server/db";
-import { docEvents } from "@/server/schema";
+import { docEvents, users } from "@/server/schema";
 import { ReplayPlayer } from "@/features/replay/ReplayPlayer";
 
 export const dynamic = "force-dynamic";
@@ -27,13 +27,31 @@ export default async function ReplayPage({
   if (!level || level === "viewer" || level === "commenter") notFound();
 
   const db = await getDb();
-  const events = await db
-    .select()
+  const rows = await db
+    .select({
+      seq: docEvents.seq,
+      kind: docEvents.kind,
+      steps: docEvents.steps,
+      inserted: docEvents.inserted,
+      deleted: docEvents.deleted,
+      clientT: docEvents.clientT,
+      receivedAt: docEvents.receivedAt,
+      checkpoint: docEvents.checkpoint,
+      userId: docEvents.userId,
+      userName: users.name,
+    })
     .from(docEvents)
+    .innerJoin(users, eq(users.id, docEvents.userId))
     .where(eq(docEvents.documentId, id))
     .orderBy(asc(docEvents.seq));
 
-  const serializedEvents = events.map((e) => ({
+  // Build authors map: userId -> name
+  const authors: Record<string, string> = {};
+  for (const r of rows) {
+    if (!authors[r.userId]) authors[r.userId] = r.userName;
+  }
+
+  const serializedEvents = rows.map((e) => ({
     seq: e.seq,
     kind: e.kind as
       | "type"
@@ -49,6 +67,7 @@ export default async function ReplayPage({
     clientT: e.clientT,
     receivedAt: e.receivedAt.toISOString(),
     checkpoint: e.checkpoint ?? null,
+    userId: e.userId,
   }));
 
   return (
@@ -66,6 +85,7 @@ export default async function ReplayPage({
         <ReplayPlayer
           docId={id}
           initialEvents={serializedEvents}
+          authors={authors}
           canAccess={true}
         />
       </div>
