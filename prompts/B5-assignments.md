@@ -1,0 +1,16 @@
+Read CLAUDE.md and PLAN.md, especially Assignment mode and Access rules. Task B5: assignments. Budget: 35 minutes. Solo assignments only.
+
+1. Extend getDocAccess: a teacher who owns the assignment linked to a document gets `commenter` (view and comment, never edit). Extend the replay access check the same way.
+2. Classes and roster (teacher only):
+   - `/classes`: create a class, list classes. `/classes/[id]`: roster with status, add students by email (existing user -> active, unknown email -> pending and activated on signup via `activatePendingForUser`), remove a student. A student who joins an existing class gets copies for all existing assignments on activation.
+3. Assignments (teacher only): create with title, rich-text instructions (reuse the Tiptap editor, simple toolbar), due date and time (stored UTC, displayed in the viewer's timezone), optional template document picked from the teacher's docs. On create, for every active class member create a submission row and a student-owned document (copy of the template, or blank titled after the assignment) with `assignment_id` set. Each copy gets an `import`-kind seq 0 checkpoint event so replay works.
+4. Student experience:
+   - `/assignments`: list with title, class, due date, status chip (Not started, In progress, Submitted, Late), and countdown or overdue text.
+   - Opening an assignment opens the student's doc with a SPLIT VIEW: instructions pane on the left (collapsible, resizable or at least toggleable), editor on the right. Persist the pane open state.
+   - Submit button with the rules from PLAN.md: before the deadline, submit and resubmit freely; after the deadline an unsubmitted student can submit once and it is marked late; once submitted after the deadline the doc is locked read-only for the student. The server computes `is_late` from `due_at` and its own clock. Return 409 with a clear message when locked.
+   - Status moves to In progress on the first recorded edit.
+5. Teacher dashboard `/assignments/[id]`: table of students with status, submitted time, late badge, active writing time, pasted percentage (from the facts function), and buttons Open and Replay. Sort and filter by status. A summary row: submitted count, late count, not started count.
+6. Teacher comments (view and comment only): a custom Tiptap `Comment` mark with a `commentId` attribute (build it yourself, no paid extension), a comments side panel with threads, replies, resolve, and add-comment from a text selection. Commenters (including shared commenters from B2) can comment, viewers cannot. Comments live in the `comments` table.
+7. Tests: the teacher can view and comment but gets 403 on PUT for a student's doc; a stranger teacher gets 404; late computation at the boundary (one second before, exactly at, one second after the deadline, using an injectable clock); resubmit before deadline updates `submitted_at` but keeps `first_submitted_at`; post-deadline submission locks; pending class member gets their copies on activation; copies are independent of the template; comment permissions by role.
+
+Commit as `feat(assignments): classes, assignments, submissions, teacher review`. Then give me a demo script: Ms. Rivera creates a class and assignment, Ana types and pastes, Ben does not start, then the dashboard and a replay.

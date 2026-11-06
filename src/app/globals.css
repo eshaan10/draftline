@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #fafaf7;
+  --fg: #111827;
+  --muted: #6b7280;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --brand: #047857;
+  --brand-fg: #ffffff;
+  --brand-soft: #ecfdf5;
+  --brand-border: #a7f3d0;
+}
+
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --fg: #e5e7eb;
+  --muted: #94a3b8;
+  --surface: #0f172a;
+  --border: #1f2937;
+  --brand: #10b981;
+  --brand-fg: #04131a;
+  --brand-soft: #064e3b;
+  --brand-border: #047857;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100%;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--brand-fg);
+}
+.btn-primary:hover {
+  filter: brightness(0.95);
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand-border);
+}
+
+.input {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+.input:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}

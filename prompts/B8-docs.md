@@ -1,0 +1,13 @@
+Read CLAUDE.md, PLAN.md and AI_LOG.md. Task B8: submission documents. Budget: 25 minutes total, and the video is the long pole, so write these quickly.
+
+Write these files at the repo root. Plain, natural language. No em dashes. Be honest: say what is partial, do not oversell.
+
+1. README.md: what it is (2 sentences), live URL placeholder, demo accounts table (email, role, password), a 60-second reviewer tour (the exact clicks to see sharing, import, replay and assignments), local setup (node version, env vars, migrate, seed, dev, test), supported upload types and the 4MB limit, known limitations (docx conversion limits you found in B3), and a short tech stack list.
+2. ARCHITECTURE.md (short, under 1.5 pages): what was prioritized and why, the data model in a small diagram or table, the single access function and why, the replay design (append-only events, server timestamps, checkpoints, fidelity test), the optimistic concurrency choice and why live co-editing was cut, deployment choices (Vercel + Neon, why not SQLite on free tiers), and a "deliberately not built" list with reasons.
+3. AI_WORKFLOW.md: use AI_LOG.md as the factual basis. Cover the four required points: which AI tools were used, where AI materially sped things up, what AI output was changed or rejected (use ONLY real entries from AI_LOG.md), and how correctness, UX and reliability were verified (tests, the replay fidelity test, access matrix test, manual walkthroughs, deployed URL checks). If AI_LOG.md has thin entries, say so and ask me to add what I remember instead of inventing anything.
+4. SUBMISSION.md: exactly what is included (file by file), live URL, demo credentials, how to run locally, what works, what is incomplete, what I would build next with 2 to 4 more hours (group assignments, draggable outline, Markdown export, versions diff, etc., only items that are genuinely not built), and the walkthrough video URL placeholder.
+5. VIDEO_NOTES.md: a 4-minute talk track with timestamps: 0:00 pitch, 0:30 create, format, autosave, rename, 1:00 import docx, 1:25 share with a second user and pending invite, 2:00 replay and facts, 2:50 assignment dashboard, 3:20 what I cut and why, 3:40 how AI helped and what I rejected, 4:00 close. Include the exact demo steps and accounts for each segment.
+6. VIDEO_URL.txt with a placeholder line.
+7. Check that `npm run build`, `npm test` and `npm run typecheck` pass and that the README setup steps actually work from a clean clone (describe how you verified).
+
+Do not claim features that are not in the code. Cross-check every claim in the docs against the repo before finishing.
