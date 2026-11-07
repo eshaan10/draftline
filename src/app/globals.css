@@ -52,6 +52,11 @@ body {
 .btn-primary:hover {
   filter: brightness(0.95);
 }
+.btn-primary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  filter: brightness(0.95);
+}
 
 .btn-ghost {
   background: var(--surface);
@@ -59,6 +64,12 @@ body {
   border: 1px solid var(--border);
 }
 .btn-ghost:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand-border);
+}
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
   background: var(--brand-soft);
   border-color: var(--brand-border);
 }
