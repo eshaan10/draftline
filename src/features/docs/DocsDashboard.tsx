@@ -126,8 +126,14 @@ export function DocsDashboard({
     >
       <header className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--border)" }}>
         <div>
-          <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-            Draftline
+          <p className="flex items-center gap-1 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            <span
+              className="inline-flex items-center justify-center rounded"
+              style={{ width: 18, height: 18, background: "var(--brand)", color: "var(--brand-fg)", fontSize: 13, fontWeight: 700, lineHeight: 1 }}
+            >
+              /
+            </span>
+            draftline<span style={{ color: "var(--brand)", fontWeight: 700 }}>/</span>
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your documents</h1>
         </div>
