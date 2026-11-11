@@ -44,7 +44,13 @@ All entries below come directly from AI_LOG.md. No events are invented.
 
 **B6 - signup() signature in tests.** The feedback test setup called `signup(email, name, password, role)` with four positional arguments. The actual function signature takes a single object `{ email, name, password, role }`. Caught by typecheck. Fixed by removing the unused signup call and activating the member row directly via a database update instead.
 
-**Line spacing (manual testing).** The initial line spacing implementation used `LineHeight` from `@tiptap/extension-text-style`. Its `setLineHeight` command calls `setMark("textStyle", { lineHeight })` regardless of the `types` configuration, applying line-height as an inline span style rather than a block attribute. With a caret (no selection), mark commands do nothing. `editor.getAttributes("paragraph").lineHeight` always returned null so the toolbar never reflected the current value. Found in manual testing. Rebuilt as a custom `BlockLineHeight` extension using `addGlobalAttributes` on paragraph and heading with `setNodeMarkup` to update block attrs across the selection. Six unit tests added.
+**Line spacing (manual testing, three passes).** The initial line spacing implementation used `LineHeight` from `@tiptap/extension-text-style`. Its `setLineHeight` command calls `setMark("textStyle", { lineHeight })` regardless of the `types` configuration, applying line-height as an inline span style rather than a block attribute. With a caret (no selection), mark commands do nothing. `editor.getAttributes("paragraph").lineHeight` always returned null so the toolbar never reflected the current value. Found in manual testing. Rebuilt as a custom `BlockLineHeight` extension using `addGlobalAttributes` on paragraph and heading.
+
+The first command implementation used a custom transaction builder (`const tr = state.tr; dispatch(tr)`) that passed all unit tests but did not apply visually in the browser. Root cause: `state.tr` creates a new transaction independent of the chain's accumulated `tr`, so `.chain().focus().setLineHeight()` discarded the focus step entirely. Found by manual testing. Rebuilt using `commands.updateAttributes` to match how the TextAlign extension works, which fixed the visual rendering.
+
+However, `updateAttributes` calls `tr.setNodeMarkup` which produces `ReplaceStep` -- classified as `"type"` by the recorder rather than `"format"`. Final fix: changed the command to use `{ tr, state, dispatch }` from the command context and call `tr.setNodeAttribute` on the shared chain `tr`, producing `AttrStep` (classified `"format"`, 0 inserted, 0 deleted). A test was added that calls the command function directly with the same context Tiptap's chain runner uses, using the full `buildExtensions()` schema, and asserts `classifyTransaction` returns `"format"` with 0/0 chars.
+
+**Document title layout (manual testing).** The title input shared a single header row with all action chips (status chip, Replay, Share, ThemeToggle, signed-in label). Long document names were truncated with ellipsis and could not be edited in full. Found by user report. Fixed by splitting the header into two rows: title with back arrow on top, action chips below, removing the `truncate` class so the input uses the full container width.
 
 **Trimmed scope.** B1 included an in-chat editor polish sub-task (B1b: page-size canvas, toolbar extras, smart typing, outline panel, document thumbnails, card menu). The card menu was trimmed for time; the rest shipped in commit `8de2bce`. The original B6 prompt entry was cancelled entirely after the initial submission pass; a revised B6 built in a later session added dark mode, writing goals, teacher feedback, and read aloud.
 
@@ -54,7 +60,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 
 **Typecheck first.** `npm run typecheck` (strict TypeScript) ran after every block. It caught the mammoth typing issue and the ProseMirror Transform error before any test ran. After the drizzle upgrade it caught both B6 bugs before they reached the test runner.
 
-**85 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
+**86 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -67,7 +73,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 | upload.test.ts | 8 | size limit, MIME validation, extension rejection, bytea round-trip |
 | preview.test.ts | 4 | server-side HTML preview generation |
 | readability.test.ts | 7 | Flesch-Kincaid grade function with fixed inputs including edge cases |
-| lineheight.test.ts | 7 | block-level line spacing: caret, selection, heading, list item, clear, AttrStep classification |
+| lineheight.test.ts | 8 | block-level line spacing: caret, selection, heading, list item, clear, AttrStep classification, command path with buildExtensions() schema |
 
 **Replay fidelity test.** `tests/replay.test.ts` inserts a sequence of events with real ProseMirror steps, then replays from the first checkpoint by calling `Step.fromJSON(schema, stepJson)` on each event and asserts the resulting document text equals the stored final document. This is the strongest correctness check for the audit trail feature.
 
