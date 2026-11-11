@@ -37,7 +37,7 @@ type ProseMirrorTransaction = {
   };
 };
 
-function classifyTransaction(tr: ProseMirrorTransaction): RecordedEvent["kind"] {
+export function classifyTransaction(tr: ProseMirrorTransaction): RecordedEvent["kind"] {
   if (tr.getMeta("uiEvent") === "paste") return "paste";
   if (tr.getMeta("uiEvent") === "drop") return "other";
   if (tr.getMeta("history$")) return "undo";
@@ -57,7 +57,7 @@ function classifyTransaction(tr: ProseMirrorTransaction): RecordedEvent["kind"] 
   return "type";
 }
 
-function countChars(
+export function countChars(
   tr: ProseMirrorTransaction,
 ): { inserted: number; deleted: number } {
   let inserted = 0;

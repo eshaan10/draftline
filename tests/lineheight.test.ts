@@ -8,6 +8,8 @@ const { EditorState, TextSelection } = await import("@tiptap/pm/state");
 const { buildLineHeightTransaction, BlockLineHeight } = await import(
   "@/features/editor/extensions"
 );
+const { buildExtensions } = await import("@/features/editor/editorExtensions");
+const { classifyTransaction, countChars } = await import("@/features/replay/recorder");
 
 const schema = getSchema([StarterKit, BlockLineHeight]);
 
@@ -129,5 +131,32 @@ describe("buildLineHeightTransaction", () => {
     for (const step of tr.steps) {
       expect((step as { constructor: { name: string } }).constructor.name).toContain("Attr");
     }
+  });
+});
+
+describe("setLineHeight editor command path", () => {
+  it("classifies as format with 0 inserted and 0 deleted using buildExtensions() schema", () => {
+    const fullSchema = getSchema(buildExtensions());
+    const doc = Node.fromJSON(fullSchema, singlePara);
+    const state = EditorState.create({
+      schema: fullSchema,
+      doc,
+      selection: TextSelection.create(doc, 1),
+    });
+    const tr = state.tr;
+
+    // Invoke the command the same way Tiptap's chain runner does:
+    // pass { tr, state, dispatch } where tr is the shared chain transaction.
+    type Ctx = { tr: typeof tr; state: typeof state; dispatch?: (t: typeof tr) => void };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const addCmds = (BlockLineHeight as any).config.addCommands as () => Record<string, (v: string) => (ctx: Ctx) => boolean>;
+    const commandFn = addCmds().setLineHeight("1.5");
+    commandFn({ tr, state, dispatch: () => {} });
+
+    expect(tr.steps.length).toBeGreaterThan(0);
+    expect(classifyTransaction(tr)).toBe("format");
+    const { inserted, deleted } = countChars(tr);
+    expect(inserted).toBe(0);
+    expect(deleted).toBe(0);
   });
 });
