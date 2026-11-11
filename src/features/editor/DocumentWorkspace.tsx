@@ -305,8 +305,8 @@ export function DocumentWorkspace({
         className="sticky top-0 z-20 border-b"
         style={{ background: "var(--bg)", borderColor: "var(--border)" }}
       >
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="mx-auto max-w-4xl px-6 pt-3 pb-1">
+          <div className="flex items-center gap-3">
             <Link
               href="/docs"
               className="btn-ghost shrink-0 rounded-md px-2 py-1 text-xs"
@@ -329,10 +329,10 @@ export function DocumentWorkspace({
                 }
               }}
               aria-label="Document title"
-              className="w-full truncate bg-transparent text-lg font-semibold outline-none"
+              className="flex-1 bg-transparent text-lg font-semibold outline-none"
             />
           </div>
-          <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
+          <div className="flex items-center justify-end gap-3 pb-1 text-xs" style={{ color: "var(--muted)" }}>
             <AccessChip access={access} />
             <StatusChip status={status} titleStatus={titleStatus} canEdit={canEdit} />
             {canEdit && (
