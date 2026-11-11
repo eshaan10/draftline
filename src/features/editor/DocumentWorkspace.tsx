@@ -13,6 +13,7 @@ import { AttachmentsPanel } from "@/features/upload/AttachmentsPanel";
 import { createRecorder, type Recorder } from "@/features/replay/recorder";
 import { relativeTime } from "@/features/docs/relativeTime";
 import { ThemeToggle } from "@/features/theme/ThemeToggle";
+import { WritingGoalsPanel } from "@/features/goals/WritingGoalsPanel";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -421,6 +422,10 @@ export function DocumentWorkspace({
         </div>
         <AttachmentsPanel docId={document.id} userId={user.id} canEdit={canEdit} />
       </section>
+
+      <div className="mx-auto mt-6 max-w-[1400px] px-4">
+        <WritingGoalsPanel editor={editor} docId={document.id} />
+      </div>
 
       {isOwner && (
         <ShareDialog
