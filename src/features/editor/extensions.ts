@@ -54,10 +54,11 @@ export const BlockLineHeight = Extension.create({
   addCommands() {
     return {
       setLineHeight: (value: string) =>
-        ({ state, dispatch }: { state: EditorState; dispatch?: (tr: Transaction) => void }) => {
-          const tr = buildLineHeightTransaction(state, value);
-          if (dispatch) dispatch(tr);
-          return true;
+        ({ commands }: { commands: { updateAttributes: (type: string, attrs: Record<string, unknown>) => boolean } }) => {
+          const normalizedValue = value || null;
+          return BLOCK_TYPES.map((type) =>
+            commands.updateAttributes(type, { lineHeight: normalizedValue }),
+          ).some(Boolean);
         },
     };
   },
