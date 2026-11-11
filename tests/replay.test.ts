@@ -416,7 +416,7 @@ describe("Test d: replay access control", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 403 for a user with no access to the document", async () => {
+  it("returns 404 for a user with no access (existence not revealed)", async () => {
     const doc = await createDoc(alice, "Access doc 2");
     session.current = bob;
 
@@ -424,8 +424,8 @@ describe("Test d: replay access control", () => {
       jsonReq(`/api/docs/${doc.id}/replay`, "GET"),
       params(doc.id),
     );
-    // bob has no access -> getDocAccess returns level=null, document exists -> 403
-    expect(res.status).toBe(403);
+    // bob has no access -> level=null -> 404 (consistent with doc GET route)
+    expect(res.status).toBe(404);
   });
 
   it("returns 200 for the owner", async () => {

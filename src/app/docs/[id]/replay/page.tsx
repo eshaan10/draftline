@@ -24,7 +24,7 @@ export default async function ReplayPage({
 
   const { level, document } = await getDocAccess(user.id, id);
   if (!document) notFound();
-  if (!level || level === "viewer" || level === "commenter") notFound();
+  if (!level || level === "viewer") notFound();
 
   const db = await getDb();
   const rows = await db

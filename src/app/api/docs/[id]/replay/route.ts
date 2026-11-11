@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { docEvents, users } from "@/server/schema";
-import { canWrite, getDocAccess } from "@/server/access";
+import { getDocAccess } from "@/server/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,9 +35,15 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       { status: 404 },
     );
   }
-  if (!level || !canWrite(level)) {
+  if (!level) {
     return NextResponse.json(
-      { error: { code: "forbidden", message: "Editor or owner access required to view replay." } },
+      { error: { code: "not_found", message: "Document not found." } },
+      { status: 404 },
+    );
+  }
+  if (level === "viewer") {
+    return NextResponse.json(
+      { error: { code: "forbidden", message: "Editor, commenter, or owner access required to view replay." } },
       { status: 403 },
     );
   }

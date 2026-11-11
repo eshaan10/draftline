@@ -30,6 +30,7 @@ const classMembersOne = await import("@/app/api/classes/[id]/members/[memberId]/
 const assignmentsRoute = await import("@/app/api/assignments/route");
 const assignmentsOne = await import("@/app/api/assignments/[id]/route");
 const docsOne = await import("@/app/api/docs/[id]/route");
+const replayRoute = await import("@/app/api/docs/[id]/replay/route");
 
 const { users, classes, classMembers, assignments, submissions, documents, docEvents } = schemaMod;
 
@@ -233,6 +234,24 @@ describe("teacher access to a student's copy", () => {
       params: Promise.resolve({ id: docId }),
     });
     expect(getRes.status).toBe(404);
+  });
+
+  it("teacher of the assignment can fetch replay events (not 403)", async () => {
+    session.current = teacher;
+    const res = await replayRoute.GET(jsonReq(`/api/docs/${docId}/replay`, "GET"), {
+      params: Promise.resolve({ id: docId }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.events)).toBe(true);
+  });
+
+  it("stranger teacher cannot fetch replay events (404)", async () => {
+    session.current = strangerTeacher;
+    const res = await replayRoute.GET(jsonReq(`/api/docs/${docId}/replay`, "GET"), {
+      params: Promise.resolve({ id: docId }),
+    });
+    expect(res.status).toBe(404);
   });
 });
 
