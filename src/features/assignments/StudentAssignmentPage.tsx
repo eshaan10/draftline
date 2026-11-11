@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { generateHTML } from "@tiptap/html";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 import { buildExtensions } from "@/features/editor/editorExtensions";
 
 type Assignment = {
@@ -126,6 +127,7 @@ export function StudentAssignmentPage({
             <Link href="/assignments" className="btn-ghost rounded-md px-3 py-1.5 text-xs">
               Back
             </Link>
+            <ThemeToggle />
           </div>
         </div>
         {error && (

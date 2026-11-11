@@ -12,6 +12,7 @@ import { ShareDialog } from "./ShareDialog";
 import { AttachmentsPanel } from "@/features/upload/AttachmentsPanel";
 import { createRecorder, type Recorder } from "@/features/replay/recorder";
 import { relativeTime } from "@/features/docs/relativeTime";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -355,6 +356,7 @@ export function DocumentWorkspace({
                 Last edited by {lastEditor.name}, {relativeTime(lastEditor.at)}
               </span>
             )}
+            <ThemeToggle />
             <span>Signed in as {user.name}</span>
           </div>
         </div>

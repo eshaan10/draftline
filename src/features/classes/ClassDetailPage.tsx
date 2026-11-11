@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 
 type Member = { id: string; email: string; status: "pending" | "active"; userName: string | null };
 type Assignment = { id: string; title: string; dueAt: string };
@@ -104,6 +105,7 @@ export function ClassDetailPage({
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--muted)" }}>
           <Link href="/classes" className="btn-ghost rounded-md px-3 py-1.5">All classes</Link>
           <Link href="/assignments" className="btn-ghost rounded-md px-3 py-1.5">Assignments</Link>
+          <ThemeToggle />
           <span>Signed in as {user.name}</span>
         </div>
       </header>

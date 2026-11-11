@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 
 type Student = {
   id: string;
@@ -81,6 +82,7 @@ export function TeacherAssignmentDashboard({
             Class
           </Link>
           <Link href="/assignments" className="btn-ghost rounded-md px-3 py-1.5">All assignments</Link>
+          <ThemeToggle />
           <span>Signed in as {user.name}</span>
         </div>
       </header>

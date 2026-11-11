@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 
 type Row = { id: string; name: string; createdAt: string };
 
@@ -52,6 +53,7 @@ export function ClassesPage({
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--muted)" }}>
           <Link href="/docs" className="btn-ghost rounded-md px-3 py-1.5">Docs</Link>
           <Link href="/assignments" className="btn-ghost rounded-md px-3 py-1.5">Assignments</Link>
+          <ThemeToggle />
           <span>Signed in as {user.name}</span>
         </div>
       </header>

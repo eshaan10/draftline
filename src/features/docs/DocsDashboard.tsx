@@ -7,6 +7,7 @@ import { generateHTML } from "@tiptap/html";
 import { relativeTime } from "./relativeTime";
 import { buildExtensions } from "@/features/editor/editorExtensions";
 import { ImportButton } from "@/features/upload/ImportButton";
+import { ThemeToggle } from "@/features/theme/ThemeToggle";
 
 export type DocRow = {
   id: string;
@@ -149,6 +150,7 @@ export function DocsDashboard({
           <span className="text-sm" style={{ color: "var(--muted)" }}>
             Signed in as {user.name}
           </span>
+          <ThemeToggle />
           <form action="/api/auth/logout" method="POST">
             <button type="submit" className="btn-ghost rounded-md px-3 py-1.5 text-sm">
               Sign out
