@@ -69,7 +69,7 @@ openssl rand -base64 32
 | `npm run dev` | Start the Next.js development server on port 3000 |
 | `npm run build` | Build for production |
 | `npm run typecheck` | Run TypeScript strict check with no emit |
-| `npm test` | Run all 84 tests with Vitest against PGlite (no database needed) |
+| `npm test` | Run all 85 tests with Vitest against PGlite (no database needed) |
 | `npm run db:generate` | Generate a new Drizzle migration from schema changes |
 | `npm run db:migrate` | Apply pending migrations to the database |
 | `npm run db:seed` | Seed the demo users and story data (idempotent, safe to re-run) |
@@ -78,7 +78,7 @@ openssl rand -base64 32
 
 ## Tests
 
-84 tests across 10 files. All use PGlite (in-memory Postgres in WASM), no external database needed.
+85 tests across 10 files. All use PGlite (in-memory Postgres in WASM), no external database needed.
 
 ```bash
 npm test

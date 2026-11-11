@@ -54,7 +54,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 
 **Typecheck first.** `npm run typecheck` (strict TypeScript) ran after every block. It caught the mammoth typing issue and the ProseMirror Transform error before any test ran. After the drizzle upgrade it caught both B6 bugs before they reached the test runner.
 
-**84 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
+**85 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -67,7 +67,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 | upload.test.ts | 8 | size limit, MIME validation, extension rejection, bytea round-trip |
 | preview.test.ts | 4 | server-side HTML preview generation |
 | readability.test.ts | 7 | Flesch-Kincaid grade function with fixed inputs including edge cases |
-| lineheight.test.ts | 6 | block-level line spacing: caret, selection, heading, list item, clear |
+| lineheight.test.ts | 7 | block-level line spacing: caret, selection, heading, list item, clear, AttrStep classification |
 
 **Replay fidelity test.** `tests/replay.test.ts` inserts a sequence of events with real ProseMirror steps, then replays from the first checkpoint by calling `Step.fromJSON(schema, stepJson)` on each event and asserts the resulting document text equals the stored final document. This is the strongest correctness check for the audit trail feature.
 
