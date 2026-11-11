@@ -196,6 +196,107 @@ describe("Test a: fidelity", () => {
 });
 
 // -------------------------------------------------------------------------
+// Test a2: Line spacing fidelity with the real buildExtensions() schema.
+// Uses the same schema as the editor and the replay player so that full
+// JSON equality (including lineHeight attrs) can be asserted.
+// -------------------------------------------------------------------------
+describe("Test a2: line spacing fidelity with buildExtensions() schema", () => {
+  it("replays lineHeight changes on paragraph and heading and matches full doc JSON", async () => {
+    const { buildExtensions } = await import("@/features/editor/editorExtensions");
+    const { buildLineHeightTransaction } = await import("@/features/editor/extensions");
+    const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+
+    const doc = await createDoc(alice, "Line spacing fidelity");
+    session.current = alice;
+
+    // The replay player uses getSchema(buildExtensions()) -- use the same schema here.
+    const fullSchema = getSchema(buildExtensions());
+
+    // Initial doc: heading "Title" + paragraph "Body text".
+    // No lineHeight attrs in the seed JSON; they will default to null when
+    // the schema fills in defaults via Node.fromJSON.
+    const initialContent = {
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Title" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body text" }] },
+      ],
+    };
+
+    // POST seq 0 (checkpoint).
+    const post0 = await eventsRoute.POST(
+      jsonReq(`/api/docs/${doc.id}/events`, "POST", {
+        events: [{ seq: 0, kind: "type", steps: [], inserted: 0, deleted: 0, clientT: 0, checkpoint: initialContent }],
+      }),
+      params(doc.id),
+    );
+    expect(post0.status).toBe(201);
+
+    // Build step1: set heading lineHeight to "1.5" via a caret at pos 1 (inside heading).
+    let pmDoc = Node.fromJSON(fullSchema, initialContent);
+    const headingState = EditorState.create({
+      schema: fullSchema,
+      doc: pmDoc,
+      selection: TextSelection.create(pmDoc, 1),
+    });
+    const tr1 = buildLineHeightTransaction(headingState, "1.5");
+    expect(tr1.steps.length).toBe(1);
+    pmDoc = tr1.doc;
+    // Confirm heading got the attr.
+    expect(pmDoc.firstChild?.attrs.lineHeight).toBe("1.5");
+
+    // Build step2: set paragraph lineHeight to "2" via a caret at pos 8 (inside para).
+    // Heading "Title" has nodeSize 7 (open + 5 chars + close); para opens at pos 7,
+    // content starts at pos 8.
+    const paraInternalPos = pmDoc.firstChild!.nodeSize + 1;
+    const paraState = EditorState.create({
+      schema: fullSchema,
+      doc: pmDoc,
+      selection: TextSelection.create(pmDoc, paraInternalPos),
+    });
+    const tr2 = buildLineHeightTransaction(paraState, "2");
+    expect(tr2.steps.length).toBe(1);
+    pmDoc = tr2.doc;
+    expect(pmDoc.lastChild?.attrs.lineHeight).toBe("2");
+
+    const finalDocJson = pmDoc.toJSON();
+
+    // POST seq 1 (heading change) and seq 2 (paragraph change).
+    const post1 = await eventsRoute.POST(
+      jsonReq(`/api/docs/${doc.id}/events`, "POST", {
+        events: [
+          { seq: 1, kind: "format", steps: [tr1.steps[0].toJSON()], inserted: 0, deleted: 0, clientT: 100 },
+          { seq: 2, kind: "format", steps: [tr2.steps[0].toJSON()], inserted: 0, deleted: 0, clientT: 200 },
+        ],
+      }),
+      params(doc.id),
+    );
+    expect(post1.status).toBe(201);
+
+    // GET replay events and use buildDocAtIndex to replay from checkpoint.
+    const replayRes = await replayRoute.GET(
+      jsonReq(`/api/docs/${doc.id}/replay`, "GET"),
+      params(doc.id),
+    );
+    expect(replayRes.status).toBe(200);
+    const { events } = await replayRes.json() as { events: Parameters<typeof buildDocAtIndex>[0]; nextSeq: number };
+    expect(events.length).toBe(3);
+
+    const replayed = buildDocAtIndex(events, 2);
+    expect(replayed).not.toBeNull();
+
+    // Full JSON equality: both doc and replay use buildExtensions() schema,
+    // so lineHeight attrs round-trip correctly through setNodeMarkup steps.
+    const replayedNode = Node.fromJSON(fullSchema, replayed as object);
+    expect(replayedNode.toJSON()).toEqual(finalDocJson);
+
+    // Confirm the specific attrs are present in the replayed result.
+    expect(replayedNode.firstChild?.attrs.lineHeight).toBe("1.5");
+    expect(replayedNode.lastChild?.attrs.lineHeight).toBe("2");
+  });
+});
+
+// -------------------------------------------------------------------------
 // Test b: Facts correctness
 // -------------------------------------------------------------------------
 describe("Test b: facts correctness", () => {
