@@ -10,7 +10,7 @@ The project was planned in markdown files before any code was written. CLAUDE.md
 
 Claude Code ran in a single project folder. When sessions overlapped, explicit rules in CLAUDE.md defined which files each session owned to prevent conflicts. This meant Claude could be pointed at a specific milestone prompt without needing to re-explain the data model or access rules each time.
 
-The gate rule in PLAN.md ("B0 to B4 working end to end before B6") forced a prioritization decision: B6 (dark mode, writing goals, read aloud, teacher feedback) was initially cut to stay within the submission window. Those features shipped in a separate session after the initial pass. The git log shows this: the B8 docs commit precedes the B6 feature commits.
+The gate rule in PLAN.md ("B0 to B4 working end to end before B6") forced a prioritization decision: the original B6 entry in the prompt pack was cancelled after the initial submission pass to stay within the time budget. A revised B6 session, run separately, built dark mode, writing goals, teacher feedback, and read aloud. The git log shows this: the B8 docs commit precedes all four B6 feature commits.
 
 ---
 
@@ -44,7 +44,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 
 **B6 - signup() signature in tests.** The feedback test setup called `signup(email, name, password, role)` with four positional arguments. The actual function signature takes a single object `{ email, name, password, role }`. Caught by typecheck. Fixed by removing the unused signup call and activating the member row directly via a database update instead.
 
-**Cut milestones.** B6 was cut from the initial submission pass to stay within the time budget set in PLAN.md, then shipped as a separate session. A sub-milestone (B1b, covering inline comment threads) was trimmed from B1 and never built; the schema exists but the API routes and UI do not.
+**Trimmed scope.** B1 included an in-chat editor polish sub-task (B1b: page-size canvas, toolbar extras, smart typing, outline panel, document thumbnails, card menu). The card menu was trimmed for time; the rest shipped in commit `8de2bce`. The original B6 prompt entry was cancelled entirely after the initial submission pass; a revised B6 built in a later session added dark mode, writing goals, teacher feedback, and read aloud.
 
 ---
 

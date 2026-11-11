@@ -109,7 +109,7 @@ See [AI_WORKFLOW.md](AI_WORKFLOW.md) for the full account. The short version:
 
 The whole build was planned in markdown files before any code was written: CLAUDE.md holds the engineering rules, PLAN.md holds the data model, access rules, and time budget, and milestone prompts B0 through B8 each contained an explicit task list. Claude Code ran in a single project folder with explicit collision rules (one active session at a time per file area) to avoid conflicts when sessions overlapped.
 
-B6 (dark mode, writing goals, read aloud, teacher feedback) was initially cut to stay within the original time budget and then shipped as a separate session after the initial submission pass. The replay fidelity test, the drizzle security upgrade, and the teacher feedback permission matrix all came from that late B6 session.
+The original B6 entry in the prompt pack was cancelled after the initial submission pass to stay within the time budget. A revised B6 session, run separately, built dark mode, writing goals, teacher feedback, and read aloud. The drizzle security upgrade and teacher feedback permission matrix also came from that session.
 
 Five real bugs caught and fixed during the build are recorded in [AI_LOG.md](AI_LOG.md). Two additional bugs were caught during the drizzle upgrade in B6 and logged there.
 
