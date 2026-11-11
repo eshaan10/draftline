@@ -5,7 +5,7 @@
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | Next.js 15 App Router, TypeScript strict | Serverless-compatible, file-based routing, RSC for data fetching |
-| Editor | Tiptap v3 on ProseMirror, open-source extensions only | Stable JSON document model, step-based transform history |
+| Editor | Tiptap v3 on ProseMirror, open-source extensions only | Stable JSON document model, step-based transform history. Line spacing is a block node attribute (paragraph, heading), not a mark. |
 | Database | Postgres on Neon, Drizzle ORM 0.45.4 | Serverless Postgres, free tier, wire-compatible with PGlite for tests |
 | Auth | bcryptjs + jose HS256 session cookie, hand-rolled | No third-party auth service, no paid tier dependency |
 | Validation | zod on every request body and query | Uniform error shape, coercion, type inference |
