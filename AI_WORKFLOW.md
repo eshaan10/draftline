@@ -54,7 +54,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 
 **Typecheck first.** `npm run typecheck` (strict TypeScript) ran after every block. It caught the mammoth typing issue and the ProseMirror Transform error before any test ran. After the drizzle upgrade it caught both B6 bugs before they reached the test runner.
 
-**83 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
+**84 tests across 10 files, all on PGlite.** PGlite runs Postgres in WASM in the same process as the test runner. No external database is needed to run the full suite.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -62,7 +62,7 @@ All entries below come directly from AI_LOG.md. No events are invented.
 | docs.test.ts | 7 | create, read, update, sharing flows |
 | concurrency.test.ts | 3 | optimistic version check, rapid saves, 409 on stale base |
 | access-matrix.test.ts | 15 | all role combinations for every endpoint |
-| replay.test.ts | 14 | step fidelity, facts, session counting, per-author attribution |
+| replay.test.ts | 15 | step fidelity (StarterKit and full schema), line spacing attr roundtrip, facts, session counting, per-author attribution |
 | assignments.test.ts | 16 | create, submission, late flag, teacher access, feedback permissions |
 | upload.test.ts | 8 | size limit, MIME validation, extension rejection, bytea round-trip |
 | preview.test.ts | 4 | server-side HTML preview generation |

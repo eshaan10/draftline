@@ -45,7 +45,7 @@ One-click sign-in buttons for all accounts are on the login page. No signup requ
 
 ## What works
 
-All features listed below are tested (83 tests, 10 files, all run against PGlite with no external database needed).
+All features listed below are tested (84 tests, 10 files, all run against PGlite with no external database needed).
 
 **Documents:** create, rename, delete. Rich text toolbar: headings (H1-H3), bold, italic, underline, font family and size, text color, highlight, bullet and ordered lists, blockquote, text alignment, line spacing (paragraph-level, applied to the selection or the current paragraph), link, insert image, insert table, horizontal rule, undo, redo. Autosave every 1.5 seconds with a status chip. 409 on stale version with a non-destructive banner and reload option.
 
@@ -147,7 +147,7 @@ Generate a session secret: `openssl rand -base64 32`
 
 **Tests** (no external database needed):
 ```bash
-npm test          # 83 tests across 10 files, all use in-memory PGlite
+npm test          # 84 tests across 10 files, all use in-memory PGlite
 npm run typecheck # strict TypeScript, zero errors
 ```
 
