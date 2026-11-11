@@ -49,7 +49,7 @@ All features listed below are tested (86 tests, 10 files, all run against PGlite
 
 **Documents:** create, rename, delete. Rich text toolbar: headings (H1-H3), bold, italic, underline, font family and size, text color, highlight, bullet and ordered lists, blockquote, text alignment, line spacing (paragraph-level, applied to the selection or the current paragraph), link, insert image, insert table, horizontal rule, undo, redo. Autosave every 1.5 seconds with a status chip. 409 on stale version with a non-destructive banner and reload option.
 
-**Sharing:** invite by email, four roles (viewer, commenter, editor, owner), pending invites activated on first sign-in, role changes, revocation. Owned and shared document sections on the dashboard.
+**Sharing:** invite by email, four roles (viewer, commenter, editor, owner), pending invites activated on first sign-in, role changes, revocation. Owned and shared document sections on the dashboard. The commenter role controls read access and replay visibility; inline comment threads (the UI for leaving comments) were not built.
 
 **Import:** .docx (via mammoth), .md, .txt. 4 MB limit stated in the UI. Drag a file anywhere on the dashboard to import it.
 

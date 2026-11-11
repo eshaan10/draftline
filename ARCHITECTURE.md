@@ -40,7 +40,7 @@ One function: `getDocAccess(userId, docId)` in `src/server/access.ts`. Returns `
 Rules checked in order:
 1. User is the document owner: returns `owner`.
 2. Active `document_shares` row for this userId (or matching email): returns its role.
-3. User is the teacher of the assignment linked to this document: returns `commenter`. They can read and comment, never edit.
+3. User is the teacher of the assignment linked to this document: returns `commenter`. They can read and replay, never edit. (Inline comment threads are schema-only; no API or UI was built.)
 4. Otherwise: returns `null` (404 to the caller, existence is not revealed).
 
 Pending shares grant nothing until the invited email signs in or signs up, then the share is activated. A student's submission document locks (no further PUT) after the deadline once the student has submitted.
