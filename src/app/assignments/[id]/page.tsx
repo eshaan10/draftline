@@ -69,6 +69,7 @@ export default async function AssignmentDetail({
           isLate: s.submission.isLate,
           submittedAt: s.submission.submittedAt?.toISOString() ?? null,
           documentId: s.submission.documentId,
+          feedback: s.submission.feedback ?? null,
         }))}
       />
     );
@@ -116,6 +117,7 @@ export default async function AssignmentDetail({
         isLate: mine.isLate,
         submittedAt: mine.submittedAt?.toISOString() ?? null,
         firstSubmittedAt: mine.firstSubmittedAt?.toISOString() ?? null,
+        feedback: mine.feedback ?? null,
       }}
     />
   );

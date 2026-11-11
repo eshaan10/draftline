@@ -21,6 +21,7 @@ type Submission = {
   isLate: boolean;
   submittedAt: string | null;
   firstSubmittedAt: string | null;
+  feedback: string | null;
 };
 
 const PANE_KEY_PREFIX = "draftline:assignment-pane:";
@@ -170,6 +171,20 @@ export function StudentAssignmentPage({
           />
         </div>
       </section>
+
+      {submission.feedback && (
+        <section className="mx-auto max-w-6xl px-4 pb-8">
+          <div
+            className="rounded-md border p-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          >
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Teacher feedback
+            </p>
+            <p className="text-sm whitespace-pre-wrap">{submission.feedback}</p>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

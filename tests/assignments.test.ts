@@ -432,3 +432,120 @@ describe("pending class member activation creates copies", () => {
     expect(afterEvents[0].seq).toBe(0);
   });
 });
+
+const feedbackRoute = await import("@/app/api/assignments/[id]/feedback/route");
+
+describe("teacher feedback permission matrix", () => {
+  let teacher: User;
+  let student: User;
+  let otherTeacher: User;
+  let assignmentId: string;
+
+  beforeAll(async () => {
+    teacher = await makeUser("feedback-tch@matrix.test", "teacher");
+    student = await makeUser("feedback-stu@matrix.test", "student");
+    otherTeacher = await makeUser("feedback-other@matrix.test", "teacher");
+    const cls = await makeClass(teacher, "Feedback class");
+    await addStudent(teacher, cls.id, student.email);
+    // Activate the student so they get a submission.
+    const db = await getDb();
+    const { eq } = await import("drizzle-orm");
+    const memberRows = await db.select().from(classMembers).where(eq(classMembers.classId, cls.id));
+    // Activate via member status update.
+    await db
+      .update(classMembers)
+      .set({ userId: student.id, status: "active" })
+      .where(eq(classMembers.email, student.email));
+    // Create assignment (submissions are created from class roster).
+    const { body } = await makeAssignment(teacher, cls.id, { title: "Feedback test" });
+    assignmentId = body.assignment.id;
+    // Ensure submission exists.
+    const copy = await db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.assignmentId, assignmentId));
+    // If submission does not exist yet, create one manually.
+    if (copy.length === 0) {
+      const doc = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.assignmentId, assignmentId));
+      if (doc.length === 0) {
+        const [d] = await db.insert(documents).values({
+          ownerId: student.id,
+          title: "Feedback doc",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          version: 1,
+          assignmentId,
+        }).returning();
+        await db.insert(submissions).values({
+          assignmentId,
+          studentId: student.id,
+          documentId: d.id,
+        });
+      }
+    }
+  });
+
+  it("teacher of the assignment can save feedback and returns 200", async () => {
+    session.current = teacher;
+    const res = await feedbackRoute.PATCH(
+      jsonReq(`/api/assignments/${assignmentId}/feedback`, "PATCH", {
+        studentId: student.id,
+        feedback: "Great essay!",
+      }),
+      { params: Promise.resolve({ id: assignmentId }) },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.submission.feedback).toBe("Great essay!");
+  });
+
+  it("student cannot leave feedback and gets 403", async () => {
+    session.current = student;
+    const res = await feedbackRoute.PATCH(
+      jsonReq(`/api/assignments/${assignmentId}/feedback`, "PATCH", {
+        studentId: student.id,
+        feedback: "Self feedback attempt",
+      }),
+      { params: Promise.resolve({ id: assignmentId }) },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("unrelated teacher gets 403", async () => {
+    session.current = otherTeacher;
+    const res = await feedbackRoute.PATCH(
+      jsonReq(`/api/assignments/${assignmentId}/feedback`, "PATCH", {
+        studentId: student.id,
+        feedback: "Should not work",
+      }),
+      { params: Promise.resolve({ id: assignmentId }) },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("unauthenticated request gets 401", async () => {
+    session.current = null;
+    const res = await feedbackRoute.PATCH(
+      jsonReq(`/api/assignments/${assignmentId}/feedback`, "PATCH", {
+        studentId: student.id,
+        feedback: "Anon attempt",
+      }),
+      { params: Promise.resolve({ id: assignmentId }) },
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("feedback over 2000 chars is rejected with 400", async () => {
+    session.current = teacher;
+    const res = await feedbackRoute.PATCH(
+      jsonReq(`/api/assignments/${assignmentId}/feedback`, "PATCH", {
+        studentId: student.id,
+        feedback: "x".repeat(2001),
+      }),
+      { params: Promise.resolve({ id: assignmentId }) },
+    );
+    expect(res.status).toBe(400);
+  });
+});

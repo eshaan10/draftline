@@ -12,6 +12,7 @@ type Student = {
   isLate: boolean;
   submittedAt: string | null;
   documentId: string;
+  feedback: string | null;
 };
 
 type Assignment = {
@@ -33,7 +34,7 @@ const STATUS_FILTERS = [
 export function TeacherAssignmentDashboard({
   user,
   assignment,
-  students,
+  students: initialStudents,
 }: {
   user: { id: string; name: string };
   assignment: Assignment;
@@ -41,6 +42,28 @@ export function TeacherAssignmentDashboard({
 }) {
   const [sortBy, setSortBy] = useState<"name" | "status">("name");
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]["value"]>("all");
+  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
+  const [feedbackDraft, setFeedbackDraft] = useState("");
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+
+  async function saveFeedback(studentId: string) {
+    setFeedbackSaving(true);
+    try {
+      const res = await fetch(`/api/assignments/${assignment.id}/feedback`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ studentId, feedback: feedbackDraft }),
+      });
+      if (!res.ok) return;
+      setStudents((rows) =>
+        rows.map((r) => r.id === studentId ? { ...r, feedback: feedbackDraft } : r),
+      );
+      setFeedbackOpen(null);
+    } finally {
+      setFeedbackSaving(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const rows = [...students];
@@ -155,23 +178,64 @@ export function TeacherAssignmentDashboard({
                   —
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Link
                       href={`/docs/${s.documentId}`}
                       className="btn-ghost rounded-md px-2 py-1 text-xs"
                     >
                       Open
                     </Link>
-                    {/* B4 placeholder: Replay button. B4 will add this link to /docs/[id]/replay. */}
-                    <button
-                      type="button"
-                      disabled
-                      title="Replay is coming in B4"
-                      className="btn-ghost rounded-md px-2 py-1 text-xs opacity-50"
+                    <Link
+                      href={`/docs/${s.documentId}/replay`}
+                      className="btn-ghost rounded-md px-2 py-1 text-xs"
                     >
                       Replay
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeedbackDraft(s.feedback ?? "");
+                        setFeedbackOpen(feedbackOpen === s.id ? null : s.id);
+                      }}
+                      className="btn-ghost rounded-md px-2 py-1 text-xs"
+                    >
+                      {s.feedback ? "Edit feedback" : "Add feedback"}
                     </button>
                   </div>
+                  {feedbackOpen === s.id && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      <textarea
+                        value={feedbackDraft}
+                        onChange={(e) => setFeedbackDraft(e.target.value)}
+                        maxLength={2000}
+                        rows={3}
+                        placeholder="Leave feedback for this student (max 2000 chars)"
+                        className="input w-full rounded-md px-2 py-1 text-xs"
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => saveFeedback(s.id)}
+                          disabled={feedbackSaving}
+                          className="btn-primary rounded-md px-2 py-1 text-xs disabled:opacity-60"
+                        >
+                          {feedbackSaving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackOpen(null)}
+                          className="btn-ghost rounded-md px-2 py-1 text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!feedbackOpen && s.feedback && (
+                    <p className="mt-1 text-xs italic" style={{ color: "var(--muted)" }}>
+                      {s.feedback.length > 80 ? s.feedback.slice(0, 80) + "..." : s.feedback}
+                    </p>
+                  )}
                 </td>
               </tr>
             ))}

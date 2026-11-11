@@ -224,6 +224,8 @@ export const submissions = pgTable(
     firstSubmittedAt: timestamp("first_submitted_at", { withTimezone: true }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     isLate: boolean("is_late").notNull().default(false),
+    feedback: text("feedback"),
+    feedbackUpdatedAt: timestamp("feedback_updated_at", { withTimezone: true }),
   },
   (t) => ({
     uniqAssignStudent: uniqueIndex("submissions_assignment_student_unique").on(
