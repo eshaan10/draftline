@@ -119,4 +119,15 @@ describe("buildLineHeightTransaction", () => {
     const tr = buildLineHeightTransaction(state, "1.5");
     expect(tr.doc.firstChild?.attrs.lineHeight).toBe("1.5");
   });
+
+  it("produces AttrStep steps so the recorder classifies the event as format", async () => {
+    // The recorder checks s.constructor.name.includes("Attr") to return "format".
+    // setNodeAttribute creates AttrStep whose constructor.name is "AttrStep".
+    const state = makeState(singlePara, 1);
+    const tr = buildLineHeightTransaction(state, "1.5");
+    expect(tr.steps.length).toBeGreaterThan(0);
+    for (const step of tr.steps) {
+      expect((step as { constructor: { name: string } }).constructor.name).toContain("Attr");
+    }
+  });
 });

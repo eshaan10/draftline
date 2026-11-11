@@ -20,12 +20,11 @@ export function buildLineHeightTransaction(
 ): Transaction {
   const { from, to } = state.selection;
   const tr = state.tr;
+  // AttrStep (via setNodeAttribute) is classified "format" by the recorder;
+  // setNodeMarkup produces a ReplaceStep which is classified "type".
   state.doc.nodesBetween(from, to, (node, pos) => {
     if (BLOCK_TYPES.includes(node.type.name)) {
-      tr.setNodeMarkup(pos, undefined, {
-        ...node.attrs,
-        lineHeight: value || null,
-      });
+      tr.setNodeAttribute(pos, "lineHeight", value || null);
     }
   });
   return tr;
