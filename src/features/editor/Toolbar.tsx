@@ -2,6 +2,7 @@
 
 import { type Editor } from "@tiptap/react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { ReadAloudButton } from "./ReadAloudButton";
 
 const FONTS = [
   { value: "Arial, sans-serif", label: "Arial" },
@@ -368,6 +369,9 @@ export function EditorToolbar({
           ↷
         </Btn>
       </Group>
+
+      <Divider />
+      <ReadAloudButton editor={disabled ? null : editor} />
     </div>
   );
 }
