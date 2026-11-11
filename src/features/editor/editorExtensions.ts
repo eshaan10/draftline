@@ -7,7 +7,8 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
-import { TextStyle, FontSize, LineHeight } from "@tiptap/extension-text-style";
+import { TextStyle, FontSize } from "@tiptap/extension-text-style";
+import { BlockLineHeight } from "./extensions";
 import { Color } from "@tiptap/extension-color";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Typography } from "@tiptap/extension-typography";
@@ -37,7 +38,7 @@ export function buildExtensions(opts?: { placeholder?: string }) {
     Highlight.configure({ multicolor: true }),
     FontFamily,
     FontSize,
-    LineHeight.configure({ types: ["paragraph", "heading"] }),
+    BlockLineHeight,
     Typography,
   ];
 }
